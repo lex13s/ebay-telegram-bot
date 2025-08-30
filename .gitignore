@@ -6,3 +6,6 @@
 
 # Build output
 /dist
+
+# IDE configuration
+/.idea

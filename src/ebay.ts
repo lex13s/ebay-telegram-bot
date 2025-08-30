@@ -1,3 +1,4 @@
+
 import { EBAY_API_URL } from './constants';
 
 /**
@@ -49,7 +50,6 @@ export interface FoundItem {
  */
 export async function findItem(keywords: string, appId: string): Promise<FoundItem | null> {
     // If the eBay App ID is missing, the bot enters a mock mode for testing and development.
-    // This avoids making real API calls without credentials and allows offline testing.
     if (!appId || appId === 'YOUR_EBAY_APP_ID_HERE') {
         console.log('eBay App ID is not configured. Returning mock data.');
         return {
@@ -58,28 +58,33 @@ export async function findItem(keywords: string, appId: string): Promise<FoundIt
         };
     }
 
+    // The API parameters are now split between headers and URL search params.
     const url = new URL(EBAY_API_URL);
-    const params: Record<string, string> = {
-        'OPERATION-NAME': 'findItemsByKeywords',
-        'SERVICE-VERSION': '1.0.0',
-        'SECURITY-APPNAME': appId,
+    const params = {
+        'keywords': keywords,
+        'paginationInput.entriesPerPage': '1',
         'RESPONSE-DATA-FORMAT': 'JSON',
         'REST-PAYLOAD': 'true',
-        'keywords': keywords,
-        'paginationInput.entriesPerPage': '1' // We only need the top result.
     };
     url.search = new URLSearchParams(params).toString();
 
+    const headers = {
+        'X-EBAY-SOA-SECURITY-APPNAME': appId,
+        'X-EBAY-SOA-OPERATION-NAME': 'findItemsByKeywords',
+        'X-EBAY-SOA-SERVICE-VERSION': '1.13.0', // Using a common version
+        'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US', // Added the missing Global ID
+    };
+
     try {
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), { headers });
         if (!response.ok) {
             // Throw an error if the HTTP response is not successful (e.g., 4xx, 5xx status).
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
         }
         const data: EbayFindingResponse = await response.json();
 
         // Safely navigate the nested JSON structure of the eBay API response.
-        // The optional chaining operator (?.) prevents errors if any intermediate property is null or undefined.
         const items = data.findItemsByKeywordsResponse[0]?.searchResult[0]?.item;
 
         if (items && items.length > 0) {

@@ -1,4 +1,3 @@
-
 import { EBAY_API_URL } from './constants';
 
 /**
@@ -58,33 +57,31 @@ export async function findItem(keywords: string, appId: string): Promise<FoundIt
         };
     }
 
-    // The API parameters are now split between headers and URL search params.
     const url = new URL(EBAY_API_URL);
-    const params = {
-        'keywords': keywords,
-        'paginationInput.entriesPerPage': '1',
+    
+    // For this API, all parameters, including security and operation details,
+    // are sent as URL query parameters.
+    const params: Record<string, string> = {
+        'OPERATION-NAME': 'findItemsByKeywords',
+        'SERVICE-VERSION': '1.13.0',
+        'SECURITY-APPNAME': appId,
+        'GLOBAL-ID': 'EBAY-US',
         'RESPONSE-DATA-FORMAT': 'JSON',
         'REST-PAYLOAD': 'true',
+        'keywords': keywords,
+        'paginationInput.entriesPerPage': '1',
     };
     url.search = new URLSearchParams(params).toString();
 
-    const headers = {
-        'X-EBAY-SOA-SECURITY-APPNAME': appId,
-        'X-EBAY-SOA-OPERATION-NAME': 'findItemsByKeywords',
-        'X-EBAY-SOA-SERVICE-VERSION': '1.13.0', // Using a common version
-        'X-EBAY-SOA-GLOBAL-ID': 'EBAY-US', // Added the missing Global ID
-    };
-
     try {
-        const response = await fetch(url.toString(), { headers });
+        // This is a simple GET request with all parameters in the URL.
+        const response = await fetch(url.toString());
         if (!response.ok) {
-            // Throw an error if the HTTP response is not successful (e.g., 4xx, 5xx status).
             const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
         }
         const data: EbayFindingResponse = await response.json();
 
-        // Safely navigate the nested JSON structure of the eBay API response.
         const items = data.findItemsByKeywordsResponse[0]?.searchResult[0]?.item;
 
         if (items && items.length > 0) {
@@ -93,7 +90,6 @@ export async function findItem(keywords: string, appId: string): Promise<FoundIt
             const price = item.sellingStatus[0].currentPrice[0].__value__;
             return { title, price };
         } else {
-            // Return null if the search yielded no results.
             return null;
         }
     } catch (error) {

@@ -88,7 +88,7 @@ describe('ebay.ts', () => {
     });
 
     it('should return null on non-ok response', async () => {
-        (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+        (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve('Server Error') });
 
         const item = await findItem('any-part', 'FAKE_APP_ID');
 

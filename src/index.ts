@@ -1,4 +1,3 @@
-
 /**
  * @file The main entry point for the Telegram bot.
  * This file handles bot initialization, command processing, and message handling.
@@ -7,6 +6,7 @@
 import dotenv from 'dotenv';
 dotenv.config(); // Load environment variables from .env file
 
+import http from 'http';
 import TelegramBot from 'node-telegram-bot-api';
 import { findItem } from './ebay';
 import { createExcelReport } from './excel';
@@ -111,4 +111,15 @@ bot.on('message', async (msg: TelegramBot.Message) => {
  */
 bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
+});
+
+// --- WEB SERVER FOR RENDER HEALTH CHECKS ---
+// This is a simple server that responds to health checks from Render.
+// It allows the bot, which uses polling, to be deployed as a "Web Service".
+const PORT = process.env.PORT || 10000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is alive!\n');
+}).listen(PORT, () => {
+    console.log(`Health check server running on port ${PORT}`);
 });

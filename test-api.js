@@ -3,7 +3,7 @@
 require('dotenv').config();
 const { findItem } = require('./dist/ebay.js');
 
-const testPartNumber = 'laptop'; // A generic search term
+const testPartNumber = '90915-YZZE1'; // A common Toyota oil filter part number
 const ebayAppId = process.env.EBAY_APP_ID;
 
 console.log(`Testing eBay API with App ID: ${ebayAppId ? 'Loaded' : 'MISSING'} and Search Term: ${testPartNumber}`);

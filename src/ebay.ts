@@ -65,7 +65,7 @@ export async function findItem(keywords: string, appId: string): Promise<FoundIt
         'OPERATION-NAME': 'findItemsByKeywords',
         'SERVICE-VERSION': '1.13.0',
         'SECURITY-APPNAME': appId,
-        'GLOBAL-ID': 'EBAY-US',
+        'GLOBAL-ID': 'EBAY-MOTOR',
         'RESPONSE-DATA-FORMAT': 'JSON',
         'REST-PAYLOAD': 'true',
         'keywords': keywords,

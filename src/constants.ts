@@ -40,10 +40,13 @@ partnumber3
     /** Error message when the user sends a message with no valid part numbers. */
     noPartNumbers: 'Пожалуйста, введите хотя бы один партномер.',
     /** Generic error message for any unhandled exceptions during processing. */
-    error: '❌ Произошла ошибка при обработке вашего запроса. Попробуйте еще раз позже.',
+    error: 'An unexpected error occurred. Please try again later.',
+    noItemsFoundOrError: 'No items were found for your search query, or an error occurred. Please try again with different part numbers.',
     /** Message indicating how many part numbers are being searched for. */
     searching: (count: number) => `Ищу информацию по ${count} номер(у/ам)...`
 };
 
 /** The prefix for the generated Excel file name. */
 export const FILE_NAME_PREFIX = 'eBay_Report_';
+
+export const EBAY_SEARCH_LIMIT = 1;

@@ -1,49 +1,74 @@
-import eBayApi from 'ebay-api';
 
-// The eBay API client instance.
-// It is initialized lazily to make the module easier to test.
-// By delaying the instantiation, we can mock the 'ebay-api' module effectively in our tests.
-let ebayApi: any;
+import eBayApi from 'ebay-api';
+import EbayAuthToken from 'ebay-oauth-nodejs-client';
+import { EBAY_SEARCH_LIMIT } from './constants';
+
+// In-memory cache for the application token
+let appTokenCache = {
+    token: null as string | null,
+    expiresAt: 0,
+};
 
 /**
- * Lazily initializes and returns the eBay API client instance.
- * This approach is crucial for testability, as it allows Jest to mock the 'ebay-api'
- * module before this client is ever created.
- * @returns The singleton instance of the eBayApi client.
+ * Fetches and caches an eBay application access token.
+ * The token is fetched using the Client Credentials Grant flow and is valid for 2 hours.
+ * This function will reuse a cached token if it's still valid.
+ *
+ * @returns A promise that resolves to a valid eBay application access token.
  */
-function getEbayApi() {
-    if (!ebayApi) {
-        ebayApi = new eBayApi({
-            appId: process.env.EBAY_APP_ID,
-            certId: process.env.EBAY_CERT_ID,
-            devId: process.env.EBAY_DEV_ID,
-            sandbox: process.env.NODE_ENV !== 'production',
-        });
+async function getEbayAppToken(): Promise<string> {
+    const now = Date.now();
+
+    // If we have a cached token and it's not expired (with a 5-minute buffer), reuse it.
+    if (appTokenCache.token && now < appTokenCache.expiresAt - (5 * 60 * 1000)) {
+        return appTokenCache.token;
     }
-    return ebayApi;
+
+    console.log('Fetching new eBay application token...');
+    const env = process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'SANDBOX';
+
+    const ebayAuthToken = new EbayAuthToken({
+        clientId: process.env.EBAY_CLIENT_ID!,
+        clientSecret: process.env.EBAY_CLIENT_SECRET!,
+        env: env
+    });
+    const tokenData = await ebayAuthToken.getApplicationToken(env);
+    const token = JSON.parse(tokenData);
+
+    // Cache the new token and its expiry time
+    appTokenCache = {
+        token: token.access_token,
+        expiresAt: now + (token.expires_in * 1000),
+    };
+
+    return appTokenCache.token!;
 }
 
-
-export async function findItem(partNumber: string, authToken: string): Promise<{ title: string; price: string } | null> {
+/**
+ * Finds an item on eBay by its part number using a dynamically fetched app token.
+ *
+ * @param partNumber The part number to search for.
+ * @returns A promise that resolves to the found item, or null if not found.
+ */
+export async function findItem(partNumber: string): Promise<{ title: string; price: string } | null> {
     console.log(`Searching for part number: ${partNumber}`);
 
-    if (!authToken) {
-        console.log('eBay OAuth Token is not configured. Returning mock data.');
-        return {
-            title: `Mock Item for ${partNumber}`,
-            price: (Math.random() * 100).toFixed(2)
-        };
-    }
-
     try {
-        // Get the API client instance.
-        // This will be the real client in production and a mock in our tests.
-        const api = getEbayApi();
-        api.OAuth2.setCredentials(authToken);
+        const authToken = await getEbayAppToken();
 
-        const response = await api.buy.browse.search({
+        // Instantiate the API client here, now that we have the token.
+        const ebayApi = new eBayApi({
+            appId: process.env.EBAY_CLIENT_ID!,
+            certId: 'dummy', // certId is not needed for this flow, but the library might expect it.
+            devId: 'dummy', // devId is not needed for this flow.
+            sandbox: process.env.NODE_ENV !== 'production',
+        });
+
+        ebayApi.OAuth2.setCredentials(authToken);
+
+        const response = await ebayApi.buy.browse.search({
             q: partNumber,
-            limit: 1
+            limit: EBAY_SEARCH_LIMIT,
         });
 
         if (response.itemSummaries && response.itemSummaries.length > 0) {
@@ -52,7 +77,7 @@ export async function findItem(partNumber: string, authToken: string): Promise<{
             console.log(`Found item: ${item.title}, Price: ${price}`);
             return {
                 title: item.title!,
-                price: price
+                price: price,
             };
         } else {
             console.log('Item not found.');
@@ -60,12 +85,7 @@ export async function findItem(partNumber: string, authToken: string): Promise<{
         }
     } catch (error) {
         console.error('Error searching on eBay:', error);
-        if (error && typeof error === 'object' && 'meta' in error) {
-            const apiError = error as { meta: { error: { errors: { message: string }[] } } };
-            if (apiError.meta?.error?.errors) {
-                console.error('eBay API Error Details:', apiError.meta.error.errors.map(e => e.message).join(', '));
-            }
-        }
+        // More detailed error logging can be added here if needed
         return null;
     }
 }

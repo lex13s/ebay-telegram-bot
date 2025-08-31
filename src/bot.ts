@@ -12,16 +12,14 @@ import { BOT_MESSAGES, FILE_NAME_PREFIX, START_COMMAND_REGEX, PART_NUMBER_DELIMI
  */
 export function initializeBot(): void {
     const token = process.env.TELEGRAM_BOT_TOKEN;
-    const ebayOAuthToken = process.env.EBAY_OAUTH_TOKEN;
+    
 
     if (!token) {
         console.error('Telegram Bot Token is not provided! Please add it to your .env file.');
         process.exit(1);
     }
 
-    if (!ebayOAuthToken) {
-        console.warn('eBay OAuth Token is not provided. The bot will run in mock mode.');
-    }
+    
 
     const bot = new TelegramBot(token, { polling: true });
 
@@ -54,29 +52,38 @@ export function initializeBot(): void {
         }
 
         try {
-            bot.sendMessage(chatId, BOT_MESSAGES.searching(partNumbers.length));
+            bot.sendMessage(chatId, (BOT_MESSAGES as any).searching(partNumbers.length));
 
-            const results = await Promise.all(partNumbers.map(async (pn) => {
+            const rawResults = await Promise.all(partNumbers.map(async (pn) => {
 
-                const item = await findItem(pn, ebayOAuthToken!);
+                const item = await findItem(pn);
                 return {
                     partNumber: pn,
                     title: item ? item.title : 'Not Found',
-                    price: item ? item.price : 'N/A'
+                    price: item ? item.price : 'N/A',
+                    found: !!item // Add a flag to indicate if item was found
                 };
             }));
 
-            bot.sendMessage(chatId, BOT_MESSAGES.searchComplete);
+            // Filter out items that were not found
+            const successfulResults = rawResults.filter(result => result.found);
 
-            const reportBuffer = await createExcelReport(results);
-            const fileName = `${FILE_NAME_PREFIX}${Date.now()}.xlsx`;
+            if (successfulResults.length > 0) {
+                bot.sendMessage(chatId, BOT_MESSAGES.searchComplete);
 
-            await bot.sendDocument(chatId, reportBuffer, {},
-                {
-                    filename: fileName,
-                    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                }
-            );
+                const reportBuffer = await createExcelReport(successfulResults); // Use filtered results
+                const fileName = `${FILE_NAME_PREFIX}${Date.now()}.xlsx`;
+
+                await bot.sendDocument(chatId, reportBuffer, {},
+                    {
+                        filename: fileName,
+                        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    }
+                );
+            } else {
+                // If no items were found at all
+                bot.sendMessage(chatId, BOT_MESSAGES.noItemsFoundOrError);
+            }
 
         } catch (error) {
             console.error('An error occurred during message processing:', error);

@@ -38,12 +38,7 @@ describe('ebay.ts', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('should return mock data when authToken is not provided', async () => {
-    const item = await findItem('any-part', undefined as any);
-    expect(mockSearch).not.toHaveBeenCalled();
-    expect(item).not.toBeNull();
-    expect(item!.title).toBe('Mock Item for any-part');
-  });
+  
 
   it('should return item details on successful API response', async () => {
     const mockItem = {
@@ -52,7 +47,7 @@ describe('ebay.ts', () => {
     };
     mockSearch.mockResolvedValue({ itemSummaries: [mockItem] });
 
-    const item = await findItem('any-part', 'FAKE_OAUTH_TOKEN');
+    const item = await findItem('any-part');
 
     expect(mockSearch).toHaveBeenCalledTimes(1);
     expect(item).toEqual({ title: 'Genuine OEM Part', price: '42.00 USD' });
@@ -61,7 +56,7 @@ describe('ebay.ts', () => {
   it('should return null if API finds no items', async () => {
     mockSearch.mockResolvedValue({ itemSummaries: [] });
 
-    const item = await findItem('non-existent-part', 'FAKE_OAUTH_TOKEN');
+    const item = await findItem('non-existent-part');
 
     expect(mockSearch).toHaveBeenCalledTimes(1);
     expect(item).toBeNull();
@@ -71,7 +66,7 @@ describe('ebay.ts', () => {
     const apiError = new Error('eBay API Error');
     mockSearch.mockRejectedValue(apiError);
 
-    const item = await findItem('any-part', 'FAKE_OAUTH_TOKEN');
+    const item = await findItem('any-part');
 
     expect(mockSearch).toHaveBeenCalledTimes(1);
     expect(item).toBeNull();

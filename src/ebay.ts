@@ -1,99 +1,71 @@
-import { EBAY_API_URL } from './constants';
+import eBayApi from 'ebay-api';
+
+// The eBay API client instance.
+// It is initialized lazily to make the module easier to test.
+// By delaying the instantiation, we can mock the 'ebay-api' module effectively in our tests.
+let ebayApi: any;
 
 /**
- * @file Handles all interactions with the eBay Finding API.
+ * Lazily initializes and returns the eBay API client instance.
+ * This approach is crucial for testability, as it allows Jest to mock the 'ebay-api'
+ * module before this client is ever created.
+ * @returns The singleton instance of the eBayApi client.
  */
-
-// --- TYPE DEFINITIONS for eBay API Response ---
-// These interfaces model the nested structure of the JSON response from the eBay API.
-// This helps ensure type safety when accessing response data.
-
-interface EbayPrice {
-    __value__: string;
+function getEbayApi() {
+    if (!ebayApi) {
+        ebayApi = new eBayApi({
+            appId: process.env.EBAY_APP_ID,
+            certId: process.env.EBAY_CERT_ID,
+            devId: process.env.EBAY_DEV_ID,
+            sandbox: process.env.NODE_ENV !== 'production',
+        });
+    }
+    return ebayApi;
 }
 
-interface SellingStatus {
-    currentPrice: EbayPrice[];
-}
 
-interface Item {
-    title: string[];
-    sellingStatus: SellingStatus[];
-}
+export async function findItem(partNumber: string, authToken: string): Promise<{ title: string; price: string } | null> {
+    console.log(`Searching for part number: ${partNumber}`);
 
-interface SearchResult {
-    item: Item[];
-}
-
-interface FindItemsByKeywordsResponse {
-    searchResult: SearchResult[];
-}
-
-interface EbayFindingResponse {
-    findItemsByKeywordsResponse: FindItemsByKeywordsResponse[];
-}
-
-/** Represents a successfully found and parsed item from eBay. */
-export interface FoundItem {
-    title: string;
-    price: string;
-}
-
-/**
- * Finds a single item on eBay using the Finding API.
- * It returns the title and price of the first search result.
- * 
- * @param keywords - The part number or keywords to search for.
- * @param appId - The eBay App ID for authenticating the API request.
- * @returns A Promise that resolves with a FoundItem object, or null if no item is found or an error occurs.
- */
-export async function findItem(keywords: string, appId: string): Promise<FoundItem | null> {
-    // If the eBay App ID is missing, the bot enters a mock mode for testing and development.
-    if (!appId || appId === 'YOUR_EBAY_APP_ID_HERE') {
-        console.log('eBay App ID is not configured. Returning mock data.');
+    if (!authToken) {
+        console.log('eBay OAuth Token is not configured. Returning mock data.');
         return {
-            title: `Mock Item for ${keywords}`,
-            price: (Math.random() * 100).toFixed(2),
+            title: `Mock Item for ${partNumber}`,
+            price: (Math.random() * 100).toFixed(2)
         };
     }
 
-    const url = new URL(EBAY_API_URL);
-    
-    // For this API, all parameters, including security and operation details,
-    // are sent as URL query parameters.
-    const params: Record<string, string> = {
-        'OPERATION-NAME': 'findItemsByKeywords',
-        'SERVICE-VERSION': '1.13.0',
-        'SECURITY-APPNAME': appId,
-        'GLOBAL-ID': 'EBAY-US',
-        'RESPONSE-DATA-FORMAT': 'JSON',
-        'REST-PAYLOAD': 'true',
-        'keywords': keywords,
-        'paginationInput.entriesPerPage': '1',
-    };
-    url.search = new URLSearchParams(params).toString();
-
     try {
-        // This is a simple GET request with all parameters in the URL.
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
-        }
-        const data: EbayFindingResponse = await response.json();
+        // Get the API client instance.
+        // This will be the real client in production and a mock in our tests.
+        const api = getEbayApi();
+        api.OAuth2.setCredentials(authToken);
 
-        const items = data.findItemsByKeywordsResponse[0]?.searchResult[0]?.item;
+        const response = await api.buy.browse.search({
+            q: partNumber,
+            limit: 1
+        });
 
-        if (items && items.length > 0) {
-            const item = items[0];
-            const title = item.title[0];
-            const price = item.sellingStatus[0].currentPrice[0].__value__;
-            return { title, price };
+        if (response.itemSummaries && response.itemSummaries.length > 0) {
+            const item = response.itemSummaries[0];
+            const price = item.price?.value ? `${item.price.value} ${item.price.currency}` : 'Price not available';
+            console.log(`Found item: ${item.title}, Price: ${price}`);
+            return {
+                title: item.title!,
+                price: price
+            };
         } else {
+            console.log('Item not found.');
             return null;
         }
     } catch (error) {
-        console.error(`Error fetching data from eBay for keywords: ${keywords}`, error);
+        console.error('Error searching on eBay:', error);
+        if (error && typeof error === 'object' && 'meta' in error) {
+            const apiError = error as { meta: { error: { errors: { message: string }[] } } };
+            if (apiError.meta?.error?.errors) {
+                console.error('eBay API Error Details:', apiError.meta.error.errors.map(e => e.message).join(', '));
+            }
+        }
         return null;
     }
 }

@@ -1,97 +1,80 @@
 
 import { findItem } from '../src/ebay';
+import eBayApi from 'ebay-api';
 
-// Mock global fetch
-global.fetch = jest.fn();
+// Mock the entire 'ebay-api' module
+jest.mock('ebay-api');
+
+// We will control the mock for the .search() method in each test
+const mockSearch = jest.fn();
+
+// Mock the constructor of eBayApi to return an object
+// that has the methods our code uses.
+(eBayApi as jest.Mock).mockImplementation(() => {
+  return {
+    buy: {
+      browse: {
+        search: mockSearch,
+      },
+    },
+    OAuth2: {
+      setCredentials: jest.fn(),
+    },
+  };
+});
 
 describe('ebay.ts', () => {
+  let consoleErrorSpy: jest.SpyInstance;
 
-    beforeEach(() => {
-        (fetch as jest.Mock).mockClear();
-    });
+  beforeEach(() => {
+    // Clear mock history before each test
+    mockSearch.mockClear();
+    (eBayApi as jest.Mock).mockClear();
+    // Spy on console.error to keep test output clean
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
 
-    it('should return mock data when appId is not provided', async () => {
-        const partNumber = 'test-part-123';
-        const item = await findItem(partNumber, 'YOUR_EBAY_APP_ID_HERE');
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
 
-        expect(fetch).not.toHaveBeenCalled();
-        expect(item).not.toBeNull();
-        expect(item!.title).toBe(`Mock Item for ${partNumber}`);
-        expect(item).toHaveProperty('price');
-    });
+  it('should return mock data when authToken is not provided', async () => {
+    const item = await findItem('any-part', undefined as any);
+    expect(mockSearch).not.toHaveBeenCalled();
+    expect(item).not.toBeNull();
+    expect(item!.title).toBe('Mock Item for any-part');
+  });
 
-    it('should parse a successful API response correctly', async () => {
-        const mockResponse = {
-            findItemsByKeywordsResponse: [
-                {
-                    searchResult: [
-                        {
-                            item: [
-                                {
-                                    title: ['Genuine OEM Part'],
-                                    sellingStatus: [
-                                        {
-                                            currentPrice: [
-                                                { __value__: '42.00' }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        };
+  it('should return item details on successful API response', async () => {
+    const mockItem = {
+      title: 'Genuine OEM Part',
+      price: { value: '42.00', currency: 'USD' },
+    };
+    mockSearch.mockResolvedValue({ itemSummaries: [mockItem] });
 
-        (fetch as jest.Mock).mockResolvedValue({
-            ok: true,
-            json: () => Promise.resolve(mockResponse),
-        });
+    const item = await findItem('any-part', 'FAKE_OAUTH_TOKEN');
 
-        const item = await findItem('any-part', 'FAKE_APP_ID');
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    expect(item).toEqual({ title: 'Genuine OEM Part', price: '42.00 USD' });
+  });
 
-        expect(fetch).toHaveBeenCalledTimes(1);
-        expect(item).not.toBeNull();
-        expect(item!.title).toBe('Genuine OEM Part');
-        expect(item!.price).toBe('42.00');
-    });
+  it('should return null if API finds no items', async () => {
+    mockSearch.mockResolvedValue({ itemSummaries: [] });
 
-    it('should return null if API returns no items', async () => {
-        const mockResponse = {
-            findItemsByKeywordsResponse: [
-                {
-                    searchResult: [
-                        { item: [] } // No items found
-                    ]
-                }
-            ]
-        };
+    const item = await findItem('non-existent-part', 'FAKE_OAUTH_TOKEN');
 
-        (fetch as jest.Mock).mockResolvedValue({
-            ok: true,
-            json: () => Promise.resolve(mockResponse),
-        });
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    expect(item).toBeNull();
+  });
 
-        const item = await findItem('non-existent-part', 'FAKE_APP_ID');
+  it('should return null and log an error on API failure', async () => {
+    const apiError = new Error('eBay API Error');
+    mockSearch.mockRejectedValue(apiError);
 
-        expect(fetch).toHaveBeenCalledTimes(1);
-        expect(item).toBeNull();
-    });
+    const item = await findItem('any-part', 'FAKE_OAUTH_TOKEN');
 
-    it('should return null on API error (fetch throws)', async () => {
-        (fetch as jest.Mock).mockRejectedValue(new Error('Network Error'));
-
-        const item = await findItem('any-part', 'FAKE_APP_ID');
-
-        expect(item).toBeNull();
-    });
-
-    it('should return null on non-ok response', async () => {
-        (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve('Server Error') });
-
-        const item = await findItem('any-part', 'FAKE_APP_ID');
-
-        expect(item).toBeNull();
-    });
+    expect(mockSearch).toHaveBeenCalledTimes(1);
+    expect(item).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error searching on eBay:', apiError);
+  });
 });

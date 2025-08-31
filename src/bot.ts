@@ -1,4 +1,3 @@
-
 /**
  * @file Contains all Telegram bot-related logic, including initialization and message handlers.
  */
@@ -13,15 +12,15 @@ import { BOT_MESSAGES, FILE_NAME_PREFIX, START_COMMAND_REGEX, PART_NUMBER_DELIMI
  */
 export function initializeBot(): void {
     const token = process.env.TELEGRAM_BOT_TOKEN;
-    const ebayAppId = process.env.EBAY_APP_ID;
+    const ebayOAuthToken = process.env.EBAY_OAUTH_TOKEN;
 
     if (!token) {
         console.error('Telegram Bot Token is not provided! Please add it to your .env file.');
         process.exit(1);
     }
 
-    if (!ebayAppId) {
-        console.warn('eBay App ID is not provided. The bot will run in mock mode.');
+    if (!ebayOAuthToken) {
+        console.warn('eBay OAuth Token is not provided. The bot will run in mock mode.');
     }
 
     const bot = new TelegramBot(token, { polling: true });
@@ -58,7 +57,8 @@ export function initializeBot(): void {
             bot.sendMessage(chatId, BOT_MESSAGES.searching(partNumbers.length));
 
             const results = await Promise.all(partNumbers.map(async (pn) => {
-                const item = await findItem(pn, ebayAppId!); 
+
+                const item = await findItem(pn, ebayOAuthToken!);
                 return {
                     partNumber: pn,
                     title: item ? item.title : 'Not Found',

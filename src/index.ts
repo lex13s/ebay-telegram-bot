@@ -1,6 +1,6 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import dotenv from 'dotenv'
+dotenv.config()
 
-import { initializeBot } from './bot';
+import { initializeBot } from './bot'
 
-initializeBot();
+initializeBot()

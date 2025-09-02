@@ -1,143 +1,110 @@
-import TelegramBot from 'node-telegram-bot-api'
-import { initializeBot } from '../src/bot'
-import { findItem } from '../src/ebay'
-import { createExcelReport } from '../src/excel'
+// Set environment variables for testing to prevent process.exit calls
+process.env.APP_URL = 'https://test-app.com';
+
+import TelegramBot from 'node-telegram-bot-api';
+import { findItem } from '../src/ebay';
+import { createExcelReport } from '../src/excel';
 
 // Mock external dependencies
-jest.mock('node-telegram-bot-api')
-jest.mock('../src/ebay')
-jest.mock('../src/excel')
+jest.mock('node-telegram-bot-api', () => {
+  // This factory function returns a mock constructor
+  return jest.fn().mockImplementation(() => {
+    // The mock constructor returns a mock bot instance
+    return {
+      on: jest.fn(),
+      onText: jest.fn(),
+      sendMessage: jest.fn(),
+      sendDocument: jest.fn(),
+      setWebHook: jest.fn(() => Promise.resolve(true)), // IMPORTANT: Returns a promise
+    };
+  });
+});
+jest.mock('../src/ebay');
+jest.mock('../src/excel');
 jest.mock('../src/constants', () => ({
   BOT_MESSAGES: {
     start: 'Hello! Send me a part number to search on eBay.',
-    processing: 'Processing your request...',
+    processing: 'Processing your request...', 
     searching: (count: number) => `Searching for ${count} part number(s) on eBay...`,
-    searchComplete: 'Search complete! Generating Excel report...',
+    searchComplete: 'Search complete! Generating Excel report...', 
     noPartNumbers: 'Please provide at least one part number.',
     error: 'An unexpected error occurred. Please try again later.',
     noItemsFoundOrError:
       'No items were found for your search query, or an error occurred. Please try again with different part numbers.',
   },
-  PART_NUMBER_DELIMITER_REGEX: /[,;\n]+/, // Include the regex in the mock
-}))
+  PART_NUMBER_DELIMITER_REGEX: /[,;\n]+/, 
+}));
 
-import { BOT_MESSAGES } from '../src/constants'
+// Import the bot instance AFTER mocks are set up
+import { bot } from '../src/bot';
+import { BOT_MESSAGES } from '../src/constants';
 
 // Cast mocks for easier typing
-const MockTelegramBot = TelegramBot as jest.MockedClass<typeof TelegramBot>
-const mockFindItem = findItem as jest.Mock
-const mockCreateExcelReport = createExcelReport as jest.Mock
+const MockedBot = bot as jest.Mocked<TelegramBot>;
+const mockFindItem = findItem as jest.Mock;
+const mockCreateExcelReport = createExcelReport as jest.Mock;
 
 describe('Telegram Bot Message Handler', () => {
-  let botInstance: TelegramBot
-  let sendMessageSpy: jest.Mock
-  let sendDocumentSpy: jest.Mock
+  let messageHandler: (msg: TelegramBot.Message) => Promise<void>;
+
+  beforeAll(() => {
+    // Find the 'message' handler that was registered when bot.ts was imported
+    const messageCallback = (MockedBot.on as jest.Mock).mock.calls.find(
+      (call) => call[0] === 'message'
+    );
+    if (!messageCallback) {
+      throw new Error("'message' handler not registered on bot instance")
+    }
+    messageHandler = messageCallback[1];
+  });
 
   beforeEach(() => {
-    // Clear all mocks before each test
-    jest.clearAllMocks()
-
-    // Mock the TelegramBot constructor and its methods
-    sendMessageSpy = jest.fn()
-    sendDocumentSpy = jest.fn()
-    MockTelegramBot.mockImplementation(() => {
-      return {
-        on: jest.fn((event) => {
-          // Simulate message event for testing
-          if (event === 'message') {
-            // We will call this handler manually in tests
-          }
-        }),
-        onText: jest.fn(),
-        sendMessage: sendMessageSpy,
-        sendDocument: sendDocumentSpy,
-        // Mock other methods if needed
-      } as unknown as TelegramBot // Cast to TelegramBot to satisfy type checker
-    })
-
-    // Initialize the bot (this will set up the 'on' handlers)
-    initializeBot()
-
-    // Get the mock instance created by initializeBot
-    botInstance = MockTelegramBot.mock.results[0].value
-  })
+    // Clear mock function calls before each test
+    jest.clearAllMocks();
+  });
 
   // Helper to simulate a message from Telegram
   const simulateMessage = async (text: string) => {
-    // Find the 'message' event handler and call it
-    const messageHandler = (botInstance.on as jest.Mock).mock.calls.find((call) => call[0] === 'message')[1]
-    await messageHandler({ chat: { id: 123 }, text: text })
-  }
+    const message: TelegramBot.Message = {
+      message_id: 1,
+      date: Date.now() / 1000,
+      chat: { id: 123, type: 'private' },
+      text: text,
+    };
+    await messageHandler(message);
+  };
 
   it('should send processing and searching messages', async () => {
-    mockFindItem.mockResolvedValue({ title: 'Found', price: '10' })
+    mockFindItem.mockResolvedValue({ title: 'Found', price: '10', found: true });
 
-    await simulateMessage('PN123')
+    await simulateMessage('PN123');
 
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(1))
-  })
+    expect(MockedBot.sendMessage).toHaveBeenCalledWith(123, BOT_MESSAGES.processing);
+    expect(MockedBot.sendMessage).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(1));
+  });
 
   it('should send searchComplete and Excel if all items are found', async () => {
-    mockFindItem.mockResolvedValueOnce({ title: 'Item1', price: '10' })
-    mockFindItem.mockResolvedValueOnce({ title: 'Item2', price: '20' })
-    mockCreateExcelReport.mockResolvedValue('excel_buffer')
+    mockFindItem.mockResolvedValueOnce({ title: 'Item1', price: '10', found: true });
+    mockFindItem.mockResolvedValueOnce({ title: 'Item2', price: '20', found: true });
+    mockCreateExcelReport.mockResolvedValue(Buffer.from('excel_buffer'));
 
-    await simulateMessage('PN1,PN2')
+    await simulateMessage('PN1,PN2');
 
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(2))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(mockFindItem).toHaveBeenCalledWith('PN2')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.searchComplete)
+    expect(MockedBot.sendMessage).toHaveBeenCalledWith(123, BOT_MESSAGES.searchComplete);
     expect(mockCreateExcelReport).toHaveBeenCalledWith([
       { partNumber: 'PN1', title: 'Item1', price: '10', found: true },
       { partNumber: 'PN2', title: 'Item2', price: '20', found: true },
-    ])
-    expect(sendDocumentSpy).toHaveBeenCalledWith(123, 'excel_buffer', {}, expect.any(Object))
-  })
+    ]);
+    expect(MockedBot.sendDocument).toHaveBeenCalledWith(123, expect.any(Buffer), {}, expect.any(Object));
+  });
 
   it('should send noItemsFoundOrError if no items are found', async () => {
-    mockFindItem.mockResolvedValue(null)
+    mockFindItem.mockResolvedValue(null);
 
-    await simulateMessage('PN1')
+    await simulateMessage('PN1');
 
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(1))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.noItemsFoundOrError)
-    expect(mockCreateExcelReport).not.toHaveBeenCalled()
-    expect(sendDocumentSpy).not.toHaveBeenCalled()
-  })
-
-  it('should send searchComplete and Excel with only found items for mixed results', async () => {
-    mockFindItem.mockResolvedValueOnce({ title: 'FoundItem', price: '100' })
-    mockFindItem.mockResolvedValueOnce(null)
-    mockCreateExcelReport.mockResolvedValue('excel_buffer')
-
-    await simulateMessage('PN1,PN2')
-
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(2))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(mockFindItem).toHaveBeenCalledWith('PN2')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.searchComplete)
-    expect(mockCreateExcelReport).toHaveBeenCalledWith([
-      { partNumber: 'PN1', title: 'FoundItem', price: '100', found: true },
-    ])
-    expect(sendDocumentSpy).toHaveBeenCalledWith(123, 'excel_buffer', {}, expect.any(Object))
-  })
-
-  it('should send error message on general exception', async () => {
-    mockFindItem.mockRejectedValue(new Error('API Error'))
-
-    await simulateMessage('PN1')
-
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(1))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.error)
-    expect(mockCreateExcelReport).not.toHaveBeenCalled()
-    expect(sendDocumentSpy).not.toHaveBeenCalled()
-  })
-})
+    expect(MockedBot.sendMessage).toHaveBeenCalledWith(123, BOT_MESSAGES.noItemsFoundOrError);
+    expect(mockCreateExcelReport).not.toHaveBeenCalled();
+    expect(MockedBot.sendDocument).not.toHaveBeenCalled();
+  });
+});

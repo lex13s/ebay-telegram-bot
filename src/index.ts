@@ -1,6 +1,5 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import { initializeBot } from './bot'
-
-initializeBot()
+// Import and start the server, which in turn initializes the bot
+import './server'

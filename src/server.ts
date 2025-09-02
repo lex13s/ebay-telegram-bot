@@ -9,6 +9,8 @@ const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000
 
 // Create and configure the HTTP server
 export const server = http.createServer((req, res) => {
+  console.log(`[SERVER] Incoming request: ${req.method} ${req.url}`); // Diagnostic log
+
   if (req.method === 'POST' && req.url === secretPath) {
     let body = ''
     req.on('data', (chunk) => {

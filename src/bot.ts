@@ -16,7 +16,7 @@ if (!token) {
 }
 
 // Export the secret path to be used by the server
-export const secretPath = `/bot${token}`
+export const secretPath = `/bot${token}/`
 
 // Export the bot instance to be used by the server
 export const bot = new TelegramBot(token)

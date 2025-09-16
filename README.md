@@ -54,15 +54,9 @@ cp .env.example .env
 Edit the `.env` file with your credentials:
 
 ```dotenv
-# Set to 'production' for live environment, otherwise sandbox will be used
-NODE_ENV=development
-
 # --- Telegram ---
 # Get your bot token from @BotFather on Telegram
 TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN_HERE
-
-# Get a payment provider token from @BotFather (e.g., Stripe)
-STRIPE_PROVIDER_TOKEN=YOUR_STRIPE_PROVIDER_TOKEN_HERE
 
 # Your personal Telegram User ID for admin commands
 ADMIN_USER_ID=YOUR_TELEGRAM_ID_HERE
@@ -71,6 +65,11 @@ ADMIN_USER_ID=YOUR_TELEGRAM_ID_HERE
 # Get these from the eBay Developers Program: https://developer.ebay.com/
 EBAY_CLIENT_ID=YOUR_EBAY_APP_ID_HERE
 EBAY_CLIENT_SECRET=YOUR_EBAY_CLIENT_SECRET_HERE
+
+# --- Payments (Optional) ---
+# Get a payment provider token from @BotFather (e.g., Stripe)
+# If this is not provided, the payment functionality will be disabled.
+STRIPE_PROVIDER_TOKEN=YOUR_STRIPE_PROVIDER_TOKEN_HERE
 ```
 
 ### 3. Running the Bot

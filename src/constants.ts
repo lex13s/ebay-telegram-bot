@@ -35,9 +35,11 @@ export const BOT_MESSAGES = {
   noPartNumbers: 'Пожалуйста, введите хотя бы один партномер.',
   /** Generic error message for any unhandled exceptions during processing. */
   error: 'Произошла непредвиденная ошибка. Пожалуйста, попробуйте еще раз.',
-  /** Message when no items are found for a search query, and the cost is refunded. */
+  /** Message when no items are found for a regular user, and the cost is refunded. */
   noItemsFoundAndRefund: (balance: string) =>
     `❌ По вашему запросу ничего не найдено. Средства возвращены на ваш баланс. Текущий баланс: $${balance}`,
+  /** A simple message when no items are found (e.g., for an admin). */
+  noItemsFound: '❌ По вашему запросу ничего не найдено.',
   /** Message when a refund is issued due to an internal error. */
   refundOnEror: (balance: string) =>
     `⚠️ Произошла ошибка при обработке вашего запроса. Средства были возвращены на ваш баланс. Текущий баланс: $${balance}`,
@@ -48,6 +50,8 @@ export const BOT_MESSAGES = {
   insufficientFunds: '🚫 На вашем балансе недостаточно средств для выполнения запроса.',
   requestComplete: (cost: string, balance: string) =>
     `✅ Запрос выполнен! С вашего баланса списано $${cost}. Остаток: $${balance}.`,
+  /** Message for a successfully completed free request (e.g., for an admin). */
+  requestCompleteFree: '✅ Запрос выполнен!',
   currentBalance: (balance: string) => `Ваш текущий баланс: $${balance}`,
   paymentSuccess: (amount: string, balance: string) =>
     `✅ Оплата прошла успешно!\n\nВаш баланс пополнен на $${amount}.\nТекущий баланс: $${balance}.`,

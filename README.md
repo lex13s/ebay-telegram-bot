@@ -93,3 +93,80 @@ To run the unit tests, use the following command:
 ```bash
 npm test
 ```
+
+---
+
+## Deploying to Heroku and Setting Environment Variables via Terminal
+
+Note on Heroku config:set syntax (Русский): команду нужно писать без обратного слеша перед именем переменной. Правильно: `heroku config:set ADMIN_USER_ID=123`. Неправильно: `config:set \ADMIN_USER_ID=123`.
+
+- Пример (bash/macOS/Linux): `heroku config:set ADMIN_USER_ID=123`
+- Пример (Windows PowerShell): `heroku config:set ADMIN_USER_ID=123`
+- Пример (Windows cmd.exe): `heroku config:set ADMIN_USER_ID=123`
+
+Проверить значение: `heroku config:get ADMIN_USER_ID`. Значение должно быть числом, так как приложение парсит его как целое число.
+
+You can deploy this bot to Heroku and configure environment variables (config vars) using the Heroku CLI.
+
+### Prerequisites
+- Install the Heroku CLI: https://devcenter.heroku.com/articles/heroku-cli
+- Log in: `heroku login`
+
+### 1) Create or select an app
+```bash
+# From the project root
+heroku create  # creates a new random-named app and adds a git remote "heroku"
+# or, if you already have an app:
+# heroku git:remote -a your-app-name
+```
+
+(Optional) Rename the app:
+```bash
+heroku apps:rename your-app-name
+```
+
+### 2) Set environment variables (config vars)
+Use `heroku config:set` to create/update variables. Example for this project:
+```bash
+heroku config:set \
+  TELEGRAM_BOT_TOKEN=your_telegram_bot_token \
+  ADMIN_USER_ID=your_numeric_telegram_id \
+  EBAY_CLIENT_ID=your_ebay_app_id \
+  EBAY_CLIENT_SECRET=your_ebay_client_secret \
+  STRIPE_PROVIDER_TOKEN=your_stripe_provider_token
+```
+
+- Show all variables:
+```bash
+heroku config
+```
+- Get a single variable:
+```bash
+heroku config:get EBAY_CLIENT_ID
+```
+- Unset a variable:
+```bash
+heroku config:unset STRIPE_PROVIDER_TOKEN
+```
+
+Tip: You can also load from a local .env file (bash) with xargs:
+```bash
+# Beware of spaces/quotes; ensure your .env has KEY=VALUE per line with no spaces around '='
+export $(grep -v '^#' .env | xargs) && \
+heroku config:set $(grep -v '^#' .env | xargs)
+```
+
+### 3) Deploy
+Make sure your Procfile exists (it does in this repo). Then push to Heroku:
+```bash
+git push heroku main  # or 'master' depending on your default branch
+```
+
+### 4) View logs
+```bash
+heroku logs --tail
+```
+
+Notes:
+- Never commit your real secrets to Git. Use Heroku config vars instead of .env in production.
+- After changing config vars, you usually don't need to restart manually; Heroku will restart the dyno automatically.

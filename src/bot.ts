@@ -7,7 +7,7 @@ import { getOrCreateUser, getUser, updateUserBalance } from './database';
 import { sendInvoice, registerPaymentHandlers } from './paymentHandlers';
 import {
     isAdmin,
-    getReplyKeyboard,
+    getMainMenuKeyboard,
     processCouponCode,
     processCouponGeneration
 } from './utils';
@@ -20,22 +20,29 @@ export function initializeBot(): void {
     console.log('Payment handlers have been registered.');
   }
 
+  // Main command handler: /start
   bot.onText(START_COMMAND_REGEX, async (msg: TelegramBot.Message) => {
     if (!msg.from) return;
     const user = await getOrCreateUser(msg.from.id, msg.from.username);
     const userIsAdmin = isAdmin(user.user_id);
 
-    await bot.sendMessage(
-      msg.chat.id,
-      BOT_MESSAGES.start(msg.from.first_name, (user.balance_cents / 100).toFixed(2)),
-      { reply_markup: getReplyKeyboard(userIsAdmin) }
-    );
+    // 1. Send a welcome message and explicitly remove the old reply keyboard
+    await bot.sendMessage(msg.chat.id, BOT_MESSAGES.start(msg.from.first_name), {
+        reply_markup: { remove_keyboard: true },
+    });
+
+    // 2. Send the main menu with the new inline keyboard
+    await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu((user.balance_cents / 100).toFixed(2)), {
+        reply_markup: getMainMenuKeyboard(userIsAdmin)
+    });
   });
 
+  // Main message handler for part numbers and replies
   bot.on('message', async (msg: TelegramBot.Message) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
+    // Handle replies to our prompts (for coupons)
     if (msg.reply_to_message && text) {
         if (msg.reply_to_message.text === BOT_MESSAGES.enterCouponCode) {
             await processCouponCode(bot, msg, text);
@@ -47,10 +54,12 @@ export function initializeBot(): void {
         }
     }
 
+    // Ignore commands in the general message handler
     if (!text || text.startsWith('/')) {
       return;
     }
 
+    // --- Part Number Processing Logic ---
     if (!msg.from) return;
     const user = await getOrCreateUser(msg.from.id, msg.from.username);
     const userIsAdmin = isAdmin(user.user_id);
@@ -77,7 +86,7 @@ export function initializeBot(): void {
     }
 
     console.log(`Received message from ${chatId}: ${text}`);
-    bot.sendMessage(chatId, BOT_MESSAGES.processing);
+    await bot.sendMessage(chatId, BOT_MESSAGES.processing);
 
     try {
       let newBalance = user.balance_cents;
@@ -86,7 +95,7 @@ export function initializeBot(): void {
         await updateUserBalance(user.user_id, newBalance);
       }
 
-      bot.sendMessage(chatId, (BOT_MESSAGES as any).searching(partNumbers.length));
+      await bot.sendMessage(chatId, (BOT_MESSAGES as any).searching(partNumbers.length));
 
       const rawResults = await Promise.all(
         partNumbers.map(async (pn) => {
@@ -103,7 +112,7 @@ export function initializeBot(): void {
       const successfulResults = rawResults.filter((result) => result.found);
 
       if (successfulResults.length > 0) {
-        bot.sendMessage(chatId, BOT_MESSAGES.searchComplete);
+        await bot.sendMessage(chatId, BOT_MESSAGES.searchComplete);
 
         const reportBuffer = await createExcelReport(successfulResults);
         const fileName = `${FILE_NAME_PREFIX}${Date.now()}.xlsx`;
@@ -118,89 +127,84 @@ export function initializeBot(): void {
           }
         );
         
-        if (totalCost > 0) {
-            await bot.sendMessage(
-              chatId,
-              BOT_MESSAGES.requestComplete(
-                (totalCost / 100).toFixed(2),
-                (newBalance / 100).toFixed(2)
-              )
-            );
-        } else {
-            await bot.sendMessage(chatId, BOT_MESSAGES.requestCompleteFree);
-        }
+        const finalMessage = totalCost > 0 
+            ? BOT_MESSAGES.requestComplete((totalCost / 100).toFixed(2), (newBalance / 100).toFixed(2))
+            : BOT_MESSAGES.requestCompleteFree;
+        
+        await bot.sendMessage(chatId, finalMessage);
+        // Also send the main menu again after a successful search
+        await bot.sendMessage(chatId, BOT_MESSAGES.mainMenu((newBalance / 100).toFixed(2)), {
+            reply_markup: getMainMenuKeyboard(userIsAdmin)
+        });
 
       } else {
+        const finalMessage = totalCost > 0
+            ? BOT_MESSAGES.noItemsFoundAndRefund((user.balance_cents / 100).toFixed(2))
+            : BOT_MESSAGES.noItemsFound;
+
         if (totalCost > 0) {
             await updateUserBalance(user.user_id, user.balance_cents);
-            bot.sendMessage(
-              chatId,
-              BOT_MESSAGES.noItemsFoundAndRefund(
-                (user.balance_cents / 100).toFixed(2)
-              )
-            );
-        } else {
-            bot.sendMessage(chatId, BOT_MESSAGES.noItemsFound);
         }
+
+        await bot.sendMessage(chatId, finalMessage);
+        // Resend main menu on failure too
+        const updatedUser = await getUser(user.user_id);
+        const currentBalance = updatedUser ? updatedUser.balance_cents : user.balance_cents;
+        await bot.sendMessage(chatId, BOT_MESSAGES.mainMenu((currentBalance / 100).toFixed(2)), {
+            reply_markup: getMainMenuKeyboard(userIsAdmin)
+        });
       }
     } catch (error) {
       console.error('An error occurred during message processing:', error);
-      bot.sendMessage(chatId, BOT_MESSAGES.error);
+      await bot.sendMessage(chatId, BOT_MESSAGES.error);
       if (totalCost > 0) {
         await updateUserBalance(user.user_id, user.balance_cents);
-        await bot.sendMessage(
-          chatId,
-          BOT_MESSAGES.refundOnEror((user.balance_cents / 100).toFixed(2))
-        );
       }
     }
   });
 
-  bot.onText(/\/balance/, async (msg) => {
-    if (!msg.from) return;
-    const user = await getUser(msg.from.id);
-    const balance = user ? user.balance_cents : 0;
-    await bot.sendMessage(msg.chat.id, BOT_MESSAGES.currentBalance((balance / 100).toFixed(2)));
-  });
+  // Central handler for all button clicks
+  bot.on('callback_query', async (query) => {
+    if (!query.message || !query.from) return;
 
-  bot.onText(/\/topup/, (msg) => sendInvoice(bot, msg.chat.id));
-
-  bot.onText(/\/redeem(?: (.+))?/, async (msg, match) => {
-    const code = match?.[1]?.trim();
-    if (code) {
-      await processCouponCode(bot, msg, code);
-    } else {
-      await bot.sendMessage(msg.chat.id, BOT_MESSAGES.enterCouponCode, {
-        reply_markup: { force_reply: true, selective: true },
-      });
-    }
-  });
-
-  bot.onText(/\/generatecoupon(?: (.+))?/, async (msg, match) => {
-      if (!msg.from || !isAdmin(msg.from.id)) {
-          return bot.sendMessage(msg.chat.id, BOT_MESSAGES.adminOnly);
-      }
-      const amountStr = match?.[1]?.trim();
-      if (amountStr) {
-          await processCouponGeneration(bot, msg, amountStr);
-      } else {
-          await bot.sendMessage(msg.chat.id, BOT_MESSAGES.enterCouponValue, {
-              reply_markup: { force_reply: true, selective: true },
-          });
-      }
-  });
-
-  bot.on('callback_query', (query) => {
-    if (!query.message) return;
     const chatId = query.message.chat.id;
+    const userId = query.from.id;
+    const userIsAdmin = isAdmin(userId);
 
-    if (query.data === 'topup') {
-      sendInvoice(bot, chatId);
-    } else if (query.data === 'redeem_prompt') {
-      bot.sendMessage(chatId, BOT_MESSAGES.enterCouponCode, {
-        reply_markup: { force_reply: true, selective: true },
-      });
+    switch (query.data) {
+        case 'check_balance':
+            const user = await getUser(userId);
+            const balance = user ? user.balance_cents : 0;
+            // Edit the existing menu message with the updated balance
+            try {
+                await bot.editMessageText(BOT_MESSAGES.mainMenu((balance / 100).toFixed(2)), {
+                    chat_id: chatId,
+                    message_id: query.message.message_id,
+                    reply_markup: getMainMenuKeyboard(userIsAdmin)
+                });
+            } catch (error) {
+                // Ignore errors if the message hasn't changed
+            }
+            break;
+
+        case 'topup':
+            sendInvoice(bot, chatId);
+            break;
+
+        case 'redeem_prompt':
+            await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponCode, {
+                reply_markup: { force_reply: true, selective: true },
+            });
+            break;
+
+        case 'generate_coupon_prompt':
+            if (!userIsAdmin) return bot.answerCallbackQuery(query.id, { text: BOT_MESSAGES.adminOnly });
+            await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponValue, {
+                reply_markup: { force_reply: true, selective: true },
+            });
+            break;
     }
+
     bot.answerCallbackQuery(query.id);
   });
 

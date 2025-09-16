@@ -23,10 +23,9 @@ export const EBAY_MARKETPLACE_ID = 'EBAY_US'
 /** A collection of user-facing messages used by the bot. */
 export const BOT_MESSAGES = {
   /** The initial welcome message sent on /start. */
-  start: (firstName: string, balance: string) =>
-    `👋 Здравствуйте, ${firstName}!\n\n` +
-    `Это бот с оплатой за использование. Ваш текущий баланс: $${balance}.\n\n` +
-    `Отправьте мне один или несколько парт-номеров для поиска (это платное действие).`,
+  start: (firstName: string) => `👋 Здравствуйте, ${firstName}!\n\nОтправьте мне один или несколько парт-номеров для поиска.`,
+  /** The main menu text. */
+  mainMenu: (balance: string) => `Ваш текущий баланс: $${balance}.\n\nВыберите действие:`,
   /** Message sent when the bot starts processing a request. */
   processing: '⚙️ Начинаю обработку вашего запроса...',
   /** Message sent when the eBay search is complete and Excel generation begins. */

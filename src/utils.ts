@@ -12,24 +12,27 @@ export function isAdmin(userId: number): boolean {
 }
 
 /**
- * Generates the appropriate reply keyboard for a user.
- * @param forAdmin If true, the admin keyboard will be generated.
+ * Generates the main inline keyboard for the bot.
+ * @param forAdmin If true, includes admin-specific buttons.
  */
-export function getReplyKeyboard(forAdmin: boolean): TelegramBot.ReplyKeyboardMarkup {
-    const keyboard: TelegramBot.KeyboardButton[][] = [
-        [{ text: '/balance 💰' }, { text: '/topup 💳' }],
-        [{ text: '/redeem' }],
+export function getMainMenuKeyboard(forAdmin: boolean): TelegramBot.InlineKeyboardMarkup {
+    const keyboard: TelegramBot.InlineKeyboardButton[][] = [
+        [
+            { text: '💰 Баланс', callback_data: 'check_balance' },
+            { text: '💳 Пополнить', callback_data: 'topup' },
+        ],
+        [
+            { text: '🎁 Активировать купон', callback_data: 'redeem_prompt' },
+        ]
     ];
 
     if (forAdmin) {
-        keyboard[1].push({ text: '/generatecoupon' });
+        keyboard[1].push({ text: '🛠️ Создать купон', callback_data: 'generate_coupon_prompt' });
     }
 
-    return {
-        keyboard: keyboard,
-        resize_keyboard: true,
-    };
+    return { inline_keyboard: keyboard };
 }
+
 
 /**
  * Processes a coupon code, validates it, and updates the user's balance.
@@ -37,11 +40,17 @@ export function getReplyKeyboard(forAdmin: boolean): TelegramBot.ReplyKeyboardMa
 export async function processCouponCode(bot: TelegramBot, msg: TelegramBot.Message, code: string) {
     if (!msg.from) return;
 
+    // First, explicitly remove any lingering reply keyboard.
+    const tempMsg = await bot.sendMessage(msg.chat.id, 'Обработка...', { reply_markup: { remove_keyboard: true } });
+    await bot.deleteMessage(msg.chat.id, tempMsg.message_id);
+
     const coupon = await getCoupon(code.trim());
+    const userIsAdmin = isAdmin(msg.from.id);
+
     if (!coupon || coupon.is_activated) {
-        // On failure, also resend the keyboard to prevent it from disappearing
-        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.redeemCouponNotFound, {
-            reply_markup: getReplyKeyboard(isAdmin(msg.from.id))
+        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.redeemCouponNotFound);
+        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu(((await getOrCreateUser(msg.from.id)).balance_cents / 100).toFixed(2)), {
+            reply_markup: getMainMenuKeyboard(userIsAdmin)
         });
         return;
     }
@@ -57,24 +66,31 @@ export async function processCouponCode(bot: TelegramBot, msg: TelegramBot.Messa
         BOT_MESSAGES.redeemCouponSuccess(
             (coupon.value_cents / 100).toFixed(2),
             (newBalance / 100).toFixed(2)
-        ),
-        // On success, resend the keyboard
-        { reply_markup: getReplyKeyboard(isAdmin(user.user_id)) }
+        )
     );
+    await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu((newBalance / 100).toFixed(2)), {
+        reply_markup: getMainMenuKeyboard(userIsAdmin)
+    });
 }
 
 /**
  * Processes a request to generate a new coupon.
  */
 export async function processCouponGeneration(bot: TelegramBot, msg: TelegramBot.Message, amountStr: string) {
-    if (!isAdmin(msg.from!.id)) {
+    const userIsAdmin = isAdmin(msg.from!.id);
+    if (!userIsAdmin) {
         return bot.sendMessage(msg.chat.id, BOT_MESSAGES.adminOnly);
     }
 
+    // First, explicitly remove any lingering reply keyboard.
+    const tempMsg = await bot.sendMessage(msg.chat.id, 'Создание купона...', { reply_markup: { remove_keyboard: true } });
+    await bot.deleteMessage(msg.chat.id, tempMsg.message_id);
+
     const valueDollars = parseFloat(amountStr.trim());
     if (isNaN(valueDollars) || valueDollars <= 0) {
-        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.generateCouponUsage, {
-            reply_markup: getReplyKeyboard(true)
+        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.generateCouponUsage);
+        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu(((await getOrCreateUser(msg.from!.id)).balance_cents / 100).toFixed(2)), {
+            reply_markup: getMainMenuKeyboard(true)
         });
         return;
     }
@@ -86,12 +102,15 @@ export async function processCouponGeneration(bot: TelegramBot, msg: TelegramBot
         await createCoupon(code, valueCents);
         await bot.sendMessage(msg.chat.id, BOT_MESSAGES.generateCouponSuccess(code, valueDollars.toFixed(2)), {
             parse_mode: 'Markdown',
-            reply_markup: getReplyKeyboard(true)
+            reply_markup: getMainMenuKeyboard(true)
         });
     } catch (error) {
         console.error("Coupon generation failed:", error);
-        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.generateCouponError, {
-            reply_markup: getReplyKeyboard(true)
-        });
+        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.generateCouponError);
     }
+
+    const user = await getOrCreateUser(msg.from!.id);
+    await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu((user.balance_cents / 100).toFixed(2)), {
+        reply_markup: getMainMenuKeyboard(true)
+    });
 }

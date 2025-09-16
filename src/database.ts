@@ -86,7 +86,8 @@ export async function updateUserBalance(userId: number, newBalance: number): Pro
 }
 
 export async function createCoupon(code: string, valueCents: number): Promise<void> {
-    return dbRun('INSERT INTO coupons (code, value_cents) VALUES (?, ?)', [code, valueCents]);
+    // Explicitly set is_activated to 0 to prevent NOT NULL constraint errors.
+    return dbRun('INSERT INTO coupons (code, value_cents, is_activated) VALUES (?, ?, 0)', [code, valueCents]);
 }
 
 export async function getCoupon(code: string): Promise<Coupon | undefined> {

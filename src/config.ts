@@ -26,8 +26,8 @@ export const config = {
 
     dbName: 'bot_database.sqlite',
 
-    trialBalanceCents: 100, // $1 стартовый баланс для новых пользователей
-    costPerRequestCents: 1, // 1 цент за один "платный" запрос
-    paymentAmountCents: 200, // $2.00 - сумма пополнения по умолчанию
+    trialBalanceCents: 1000, // $10 стартовый баланс для новых пользователей
+    costPerRequestCents: 10, // 10 цент за один "платный" запрос
+    paymentAmountCents: 2000, // $20.00 - сумма пополнения по умолчанию
     paymentCurrency: 'USD',
 };

@@ -57,14 +57,14 @@ export const BOT_MESSAGES = {
     `✅ Оплата прошла успешно!\n\nВаш баланс пополнен на $${amount}.\nТекущий баланс: $${balance}.`,
 
   // Coupon Messages
-  redeemCouponPrompt: 'Пожалуйста, укажите код купона. Пример: /redeem MY-COUPON-123',
+  enterCouponCode: 'Пожалуйста, введите ваш код купона:',
   redeemCouponNotFound: '❌ Купон не найден или уже был использован.',
   redeemCouponSuccess: (amount: string, balance: string) =>
     `✅ Купон успешно активирован!\nВаш баланс пополнен на $${amount}.\nНовый баланс: $${balance}.`,
-  redeemCouponActionPrompt: 'Пожалуйста, отправьте мне купон командой /redeem <код_купона>',
 
   // Admin Messages
   adminOnly: '⛔️ Эта команда доступна только администратору.',
+  enterCouponValue: 'Введите сумму для купона в долларах (например, 10 или 5.50):',
   generateCouponUsage: 'Использование: /generatecoupon <сумма_в_долларах>\nПример: /generatecoupon 10',
   generateCouponSuccess: (code: string, amount: string) => `✅ Создан новый купон:\n\nКод: ${code}\nСумма: $${amount}`,
   generateCouponError: '❌ Ошибка при создании купона.',

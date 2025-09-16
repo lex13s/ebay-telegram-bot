@@ -13,7 +13,8 @@ import {
 } from './utils';
 
 export function initializeBot(): void {
-  const bot = new TelegramBot(config.telegramToken, { polling: true });
+  // Set polling to false initially to start it manually in a try-catch block
+  const bot = new TelegramBot(config.telegramToken, { polling: false });
 
   if (config.paymentsEnabled) {
     registerPaymentHandlers(bot);
@@ -26,15 +27,33 @@ export function initializeBot(): void {
     const user = await getOrCreateUser(msg.from.id, msg.from.username);
     const userIsAdmin = isAdmin(user.user_id);
 
-    // 1. Send a welcome message and explicitly remove the old reply keyboard
-    await bot.sendMessage(msg.chat.id, BOT_MESSAGES.start(msg.from.first_name), {
-        reply_markup: { remove_keyboard: true },
-    });
+    try {
+        // 1. Send a welcome message and explicitly remove the old reply keyboard
+        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.start(msg.from.first_name), {
+            reply_markup: { remove_keyboard: true },
+        });
+    } catch (error) {
+        // Ignore if message is not modified, otherwise rethrow
+        if (error instanceof Error && error.message.includes('message is not modified')) {
+            // Do nothing, message is already there
+        } else {
+            console.error('Error sending welcome message:', error);
+        }
+    }
 
-    // 2. Send the main menu with the new inline keyboard
-    await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu((user.balance_cents / 100).toFixed(2)), {
-        reply_markup: getMainMenuKeyboard(userIsAdmin)
-    });
+    try {
+        // 2. Send the main menu with the new inline keyboard
+        await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu((user.balance_cents / 100).toFixed(2)), {
+            reply_markup: getMainMenuKeyboard(userIsAdmin)
+        });
+    } catch (error) {
+        // Ignore if message is not modified, otherwise rethrow
+        if (error instanceof Error && error.message.includes('message is not modified')) {
+            // Do nothing, message is already there
+        } else {
+            console.error('Error sending main menu:', error);
+        }
+    }
   });
 
   // Main message handler for part numbers and replies
@@ -175,15 +194,14 @@ export function initializeBot(): void {
         case 'check_balance':
             const user = await getUser(userId);
             const balance = user ? user.balance_cents : 0;
-            // Edit the existing menu message with the updated balance
+            // Send a new message with the balance and keyboard
             try {
-                await bot.editMessageText(BOT_MESSAGES.mainMenu((balance / 100).toFixed(2)), {
-                    chat_id: chatId,
-                    message_id: query.message.message_id,
+                await bot.sendMessage(chatId, BOT_MESSAGES.currentBalance((balance / 100).toFixed(2)), {
                     reply_markup: getMainMenuKeyboard(userIsAdmin)
                 });
             } catch (error) {
-                // Ignore errors if the message hasn't changed
+                console.error('Error sending balance message:', error);
+                await bot.sendMessage(chatId, 'Произошла ошибка при получении баланса. Пожалуйста, попробуйте позже.');
             }
             break;
 
@@ -213,4 +231,12 @@ export function initializeBot(): void {
   });
 
   console.log('Bot has been initialized and started...');
+
+  // Manually start polling after all handlers are set up
+  try {
+    bot.startPolling();
+    console.log('Bot polling started.');
+  } catch (error) {
+    console.error('Error starting bot polling:', error);
+  }
 }

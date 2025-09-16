@@ -1,26 +1,39 @@
+# eBay Part Finder Bot
 
-# eBay Part Finder Telegram Bot
-
-This is a Telegram bot that helps you find the price and listing title for auto parts on eBay by providing a list of part numbers.
+This is a Telegram bot that finds prices and listing titles for auto parts on eBay. It's a usage-based paid bot with a trial balance for new users.
 
 ## Features
 
-- **Part Number Search**: Accepts a list of part numbers from a user.
-- **eBay API Integration**: Queries the eBay Finding API for each part number.
-- **Excel Reports**: Generates a `.xlsx` Excel file with the results (Part Number, Title, Price).
-- **TypeScript**: Written in TypeScript for robustness and maintainability.
-- **Unit Tested**: Core modules are covered by unit tests using Jest.
+- **Paid Usage Model**: Each search query costs a small fee, deducted from the user's balance.
+- **User Balances**: Each user has a persistent balance stored in a SQLite database.
+- **Trial Balance**: New users receive a small starting balance to test the bot.
+- **Top-up Balance**: Users can add funds to their balance via Stripe.
+- **Coupon System**: Admins can generate coupon codes for users to redeem for balance.
+- **Part Number Search**: Accepts multiple part numbers in a single message.
+- **eBay API Integration**: Queries the eBay API for each part number.
+- **Excel Reports**: Generates a `.xlsx` file with the search results.
+
+---
+
+## Commands
+
+### User Commands
+- `/start` - Initialize the bot and see your balance.
+- `/balance` - Check your current balance.
+- `/topup` - Receive a payment link to add funds to your balance.
+- `/redeem <code>` - Redeem a coupon to add funds to your balance.
+
+### Admin Commands
+- `/generatecoupon <amount>` - Generate a new coupon with a specified value in USD.
 
 ---
 
 ## Getting Started
 
-Follow these instructions to get a copy of the project up and running on your local machine.
-
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or newer recommended)
-- [npm](https://www.npmjs.com/) (usually comes with Node.js)
+- [Node.js](https://nodejs.org/) (v20 or newer)
+- [npm](https://www.npmjs.com/)
 
 ### 1. Installation
 
@@ -32,43 +45,47 @@ npm install
 
 ### 2. Configuration
 
-You need to provide API keys for Telegram and eBay. 
+Create a `.env` file by copying the example:
 
-1.  Create a `.env` file in the root of the project by copying the example file:
+```bash
+cp .env.example .env
+```
 
-    ```bash
-    cp .env.example .env
-    ```
+Edit the `.env` file with your credentials:
 
-2.  Edit the `.env` file with your credentials:
+```dotenv
+# Set to 'production' for live environment, otherwise sandbox will be used
+NODE_ENV=development
 
-    ```dotenv
-    # Get your token from BotFather on Telegram
-    TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN_HERE
+# --- Telegram ---
+# Get your bot token from @BotFather on Telegram
+TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN_HERE
 
-    # Get your App ID from the eBay Developers Program
-    # https://developer.ebay.com/
-    EBAY_APP_ID=YOUR_EBAY_APP_ID_HERE
-    ```
+# Get a payment provider token from @BotFather (e.g., Stripe)
+STRIPE_PROVIDER_TOKEN=YOUR_STRIPE_PROVIDER_TOKEN_HERE
 
-    -   `TELEGRAM_BOT_TOKEN`: Create a new bot by talking to [@BotFather](https://t.me/BotFather) on Telegram.
-    -   `EBAY_APP_ID`: Get this from the [eBay Developers Program](https://developer.ebay.com/) by creating a new application.
+# Your personal Telegram User ID for admin commands
+ADMIN_USER_ID=YOUR_TELEGRAM_ID_HERE
+
+# --- eBay API ---
+# Get these from the eBay Developers Program: https://developer.ebay.com/
+EBAY_CLIENT_ID=YOUR_EBAY_APP_ID_HERE
+EBAY_CLIENT_SECRET=YOUR_EBAY_CLIENT_SECRET_HERE
+```
 
 ### 3. Running the Bot
 
-First, you need to compile the TypeScript code:
+First, compile the TypeScript code:
 
 ```bash
 npm run build
 ```
 
-Then, you can start the bot:
+Then, start the bot:
 
 ```bash
 npm start
 ```
-
-Your bot should now be running and responding to messages on Telegram.
 
 ### 4. Running Tests
 

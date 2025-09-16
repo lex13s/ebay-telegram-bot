@@ -2,142 +2,161 @@ import TelegramBot from 'node-telegram-bot-api'
 import { initializeBot } from '../src/bot'
 import { findItem } from '../src/ebay'
 import { createExcelReport } from '../src/excel'
+import {
+  getOrCreateUser,
+  updateUserBalance,
+} from '../src/database'
+import { config } from '../src/config'
 
 // Mock external dependencies
 jest.mock('node-telegram-bot-api')
 jest.mock('../src/ebay')
 jest.mock('../src/excel')
+jest.mock('../src/database')
+jest.mock('../src/paymentHandlers')
+
+// Mock constants and config
 jest.mock('../src/constants', () => ({
+  ...jest.requireActual('../src/constants'), // Import and retain original constants
   BOT_MESSAGES: {
-    start: 'Hello! Send me a part number to search on eBay.',
-    processing: 'Processing your request...',
-    searching: (count: number) => `Searching for ${count} part number(s) on eBay...`,
-    searchComplete: 'Search complete! Generating Excel report...',
+    start: jest.fn((name, balance) => `Hello ${name}, balance: ${balance}`),
+    processing: '⚙️ Processing...',
+    searching: (count: number) => `🔎 Searching for ${count} items...`,
+    searchComplete: '✅ Search complete. Generating report...',
     noPartNumbers: 'Please provide at least one part number.',
-    error: 'An unexpected error occurred. Please try again later.',
-    noItemsFoundOrError:
-      'No items were found for your search query, or an error occurred. Please try again with different part numbers.',
+    error: 'An unexpected error occurred.',
+    insufficientFunds: '🚫 Insufficient funds.',
+    requestComplete: (cost: string, balance: string) => `✅ Success! Cost: $${cost}. Balance: $${balance}.`,
+    noItemsFoundAndRefund: (balance: string) => `🤷 No items found. Refunded. Balance: $${balance}.`,
+    refundOnEror: (balance: string) => `⚠️ Error. Refunded. Balance: $${balance}.`,
   },
-  PART_NUMBER_DELIMITER_REGEX: /[,;\n]+/, // Include the regex in the mock
+}))
+jest.mock('../src/config', () => ({
+  config: {
+    telegramToken: 'fake-token',
+    costPerRequestCents: 2, // Use a value > 1 for better testing
+  },
 }))
 
-import { BOT_MESSAGES } from '../src/constants'
-
-// Cast mocks for easier typing
+// --- Mocks --- //
 const MockTelegramBot = TelegramBot as jest.MockedClass<typeof TelegramBot>
 const mockFindItem = findItem as jest.Mock
 const mockCreateExcelReport = createExcelReport as jest.Mock
+const mockGetOrCreateUser = getOrCreateUser as jest.Mock
+const mockUpdateUserBalance = updateUserBalance as jest.Mock
 
-describe('Telegram Bot Message Handler', () => {
+describe('Bot Logic', () => {
   let botInstance: TelegramBot
   let sendMessageSpy: jest.Mock
   let sendDocumentSpy: jest.Mock
+  let messageHandler: (msg: TelegramBot.Message) => Promise<void>
 
   beforeEach(() => {
-    // Clear all mocks before each test
     jest.clearAllMocks()
 
-    // Mock the TelegramBot constructor and its methods
     sendMessageSpy = jest.fn()
     sendDocumentSpy = jest.fn()
+
     MockTelegramBot.mockImplementation(() => {
-      return {
-        on: jest.fn((event) => {
-          // Simulate message event for testing
-          if (event === 'message') {
-            // We will call this handler manually in tests
-          }
-        }),
+      const instance = {
+        on: jest.fn(),
         onText: jest.fn(),
         sendMessage: sendMessageSpy,
         sendDocument: sendDocumentSpy,
-        // Mock other methods if needed
-      } as unknown as TelegramBot // Cast to TelegramBot to satisfy type checker
+        answerCallbackQuery: jest.fn(),
+      } as unknown as TelegramBot
+      // Capture the message handler
+      instance.on = jest.fn((event, handler) => {
+        if (event === 'message') {
+          messageHandler = handler
+        }
+        return instance // Return instance for chaining
+      })
+      return instance
     })
 
-    // Initialize the bot (this will set up the 'on' handlers)
     initializeBot()
-
-    // Get the mock instance created by initializeBot
     botInstance = MockTelegramBot.mock.results[0].value
   })
 
-  // Helper to simulate a message from Telegram
-  const simulateMessage = async (text: string) => {
-    // Find the 'message' event handler and call it
-    const messageHandler = (botInstance.on as jest.Mock).mock.calls.find((call) => call[0] === 'message')[1]
-    await messageHandler({ chat: { id: 123 }, text: text })
+  const simulateMessage = (text: string, from = { id: 123, username: 'testuser' }) => {
+    const msg = { chat: { id: 123 }, from, text } as TelegramBot.Message
+    return messageHandler(msg)
   }
 
-  it('should send processing and searching messages', async () => {
-    mockFindItem.mockResolvedValue({ title: 'Found', price: '10' })
+  describe('Cost Calculation and Balance', () => {
+    it('should calculate total cost based on number of parts', async () => {
+      mockGetOrCreateUser.mockResolvedValue({ user_id: 123, balance_cents: 100, username: 'test' })
+      mockFindItem.mockResolvedValue({ title: 'Item', price: '10' })
+      mockCreateExcelReport.mockResolvedValue(Buffer.from('excel'))
 
-    await simulateMessage('PN123')
+      await simulateMessage('PN1, PN2, PN3') // 3 parts
 
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(1))
+      const expectedCost = 3 * config.costPerRequestCents
+      const expectedNewBalance = 100 - expectedCost
+
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, expectedNewBalance)
+      expect(sendMessageSpy).toHaveBeenCalledWith(
+        123,
+        `✅ Success! Cost: $${(expectedCost / 100).toFixed(2)}. Balance: $${(expectedNewBalance / 100).toFixed(2)}.`
+      )
+    })
+
+    it('should block request if balance is insufficient', async () => {
+      mockGetOrCreateUser.mockResolvedValue({ user_id: 123, balance_cents: 5, username: 'test' })
+
+      await simulateMessage('PN1, PN2, PN3, PN4') // Cost = 8 cents
+
+      expect(mockUpdateUserBalance).not.toHaveBeenCalled()
+      expect(mockFindItem).not.toHaveBeenCalled()
+      expect(sendMessageSpy).toHaveBeenCalledWith(123, '🚫 Insufficient funds.', expect.any(Object))
+    })
   })
 
-  it('should send searchComplete and Excel if all items are found', async () => {
-    mockFindItem.mockResolvedValueOnce({ title: 'Item1', price: '10' })
-    mockFindItem.mockResolvedValueOnce({ title: 'Item2', price: '20' })
-    mockCreateExcelReport.mockResolvedValue('excel_buffer')
+  describe('Refund Logic', () => {
+    const initialBalance = 100
+    beforeEach(() => {
+      mockGetOrCreateUser.mockResolvedValue({ user_id: 123, balance_cents: initialBalance, username: 'test' })
+    })
 
-    await simulateMessage('PN1,PN2')
+    it('should refund cost if no items are found', async () => {
+      mockFindItem.mockResolvedValue(null) // No items found
 
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(2))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(mockFindItem).toHaveBeenCalledWith('PN2')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.searchComplete)
-    expect(mockCreateExcelReport).toHaveBeenCalledWith([
-      { partNumber: 'PN1', title: 'Item1', price: '10', found: true },
-      { partNumber: 'PN2', title: 'Item2', price: '20', found: true },
-    ])
-    expect(sendDocumentSpy).toHaveBeenCalledWith(123, 'excel_buffer', {}, expect.any(Object))
-  })
+      await simulateMessage('PN1, PN2')
 
-  it('should send noItemsFoundOrError if no items are found', async () => {
-    mockFindItem.mockResolvedValue(null)
+      const cost = 2 * config.costPerRequestCents
+      // First, balance is deducted
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance - cost)
+      // Then, it's refunded
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance)
+      expect(mockUpdateUserBalance).toHaveBeenCalledTimes(2)
 
-    await simulateMessage('PN1')
+      expect(sendMessageSpy).toHaveBeenCalledWith(
+        123,
+        `🤷 No items found. Refunded. Balance: $${(initialBalance / 100).toFixed(2)}.`
+      )
+      expect(mockCreateExcelReport).not.toHaveBeenCalled()
+    })
 
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(1))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.noItemsFoundOrError)
-    expect(mockCreateExcelReport).not.toHaveBeenCalled()
-    expect(sendDocumentSpy).not.toHaveBeenCalled()
-  })
+    it('should refund cost on internal error', async () => {
+      const apiError = new Error('eBay API is down')
+      mockFindItem.mockRejectedValue(apiError)
 
-  it('should send searchComplete and Excel with only found items for mixed results', async () => {
-    mockFindItem.mockResolvedValueOnce({ title: 'FoundItem', price: '100' })
-    mockFindItem.mockResolvedValueOnce(null)
-    mockCreateExcelReport.mockResolvedValue('excel_buffer')
+      await simulateMessage('PN1')
 
-    await simulateMessage('PN1,PN2')
+      const cost = 1 * config.costPerRequestCents
+      // First, balance is deducted
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance - cost)
+      // Then, it's refunded
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance)
+      expect(mockUpdateUserBalance).toHaveBeenCalledTimes(2)
 
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(2))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(mockFindItem).toHaveBeenCalledWith('PN2')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.searchComplete)
-    expect(mockCreateExcelReport).toHaveBeenCalledWith([
-      { partNumber: 'PN1', title: 'FoundItem', price: '100', found: true },
-    ])
-    expect(sendDocumentSpy).toHaveBeenCalledWith(123, 'excel_buffer', {}, expect.any(Object))
-  })
-
-  it('should send error message on general exception', async () => {
-    mockFindItem.mockRejectedValue(new Error('API Error'))
-
-    await simulateMessage('PN1')
-
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.processing)
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, (BOT_MESSAGES as any).searching(1))
-    expect(mockFindItem).toHaveBeenCalledWith('PN1')
-    expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.error)
-    expect(mockCreateExcelReport).not.toHaveBeenCalled()
-    expect(sendDocumentSpy).not.toHaveBeenCalled()
+      expect(sendMessageSpy).toHaveBeenCalledWith(123, 'An unexpected error occurred.')
+      expect(sendMessageSpy).toHaveBeenCalledWith(
+        123,
+        `⚠️ Error. Refunded. Balance: $${(initialBalance / 100).toFixed(2)}.`
+      )
+      expect(mockCreateExcelReport).not.toHaveBeenCalled()
+    })
   })
 })

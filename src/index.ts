@@ -1,6 +1,14 @@
-import dotenv from 'dotenv'
-dotenv.config()
+import { initializeBot } from './bot';
+import { initDb } from './database';
 
-import { initializeBot } from './bot'
+async function main() {
+  try {
+    await initDb();
+    initializeBot();
+  } catch (error) {
+    console.error('Не удалось запустить приложение:', error);
+    process.exit(1);
+  }
+}
 
-initializeBot()
+main().catch(console.error);

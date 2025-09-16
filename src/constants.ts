@@ -68,6 +68,7 @@ export const BOT_MESSAGES = {
   // Invoice Messages
   invoiceTitle: 'Пополнение баланса',
   invoiceDescription: (cost: string) => `Покупка кредитов для бота на сумму $${cost}`,
+  paymentsDisabled: 'К сожалению, функция оплаты временно отключена. Пожалуйста, попробуйте позже.',
 }
 
 /** The prefix for the generated Excel file name. */

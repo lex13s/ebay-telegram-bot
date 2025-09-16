@@ -2,18 +2,27 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-function getEnvVariable(key: string): string {
+function getRequiredEnvVariable(key: string): string {
     const value = process.env[key];
     if (!value) {
-        throw new Error(`Переменная окружения ${key} не установлена!`);
+        throw new Error(`Обязательная переменная окружения ${key} не установлена!`);
     }
     return value;
 }
 
+function getOptionalEnvVariable(key: string): string | undefined {
+    return process.env[key];
+}
+
+const stripeToken = getOptionalEnvVariable('STRIPE_PROVIDER_TOKEN');
+
 export const config = {
-    telegramToken: getEnvVariable('TELEGRAM_BOT_TOKEN'),
-    stripeToken: getEnvVariable('STRIPE_PROVIDER_TOKEN'),
-    adminId: parseInt(getEnvVariable('ADMIN_USER_ID'), 10),
+    telegramToken: getRequiredEnvVariable('TELEGRAM_BOT_TOKEN'),
+    adminId: parseInt(getRequiredEnvVariable('ADMIN_USER_ID'), 10),
+
+    stripeToken: stripeToken,
+
+    paymentsEnabled: !!stripeToken,
 
     dbName: 'bot_database.sqlite',
 

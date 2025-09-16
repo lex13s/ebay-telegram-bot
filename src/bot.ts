@@ -22,13 +22,13 @@ import { sendInvoice, registerPaymentHandlers } from './paymentHandlers'
  * Initializes and configures the Telegram bot.
  */
 export function initializeBot(): void {
-  // Используем токен из централизованного конфига, а не напрямую из process.env
   const bot = new TelegramBot(config.telegramToken, { polling: true })
 
-  // Регистрируем обработчики платежей
-  registerPaymentHandlers(bot)
+  if (config.paymentsEnabled) {
+    registerPaymentHandlers(bot)
+    console.log('Payment handlers have been registered.');
+  }
 
-  // Определяем клавиатуру с основными командами
   const keyboard: TelegramBot.ReplyKeyboardMarkup = {
     keyboard: [
       [{ text: '/balance 💰' }, { text: '/topup 💳' }],
@@ -37,9 +37,6 @@ export function initializeBot(): void {
     resize_keyboard: true,
   }
 
-  /**
-   * Handles the /start command.
-   */
   bot.onText(START_COMMAND_REGEX, async (msg: TelegramBot.Message) => {
     if (!msg.from) return
     const user = await getOrCreateUser(msg.from.id, msg.from.username)
@@ -50,9 +47,6 @@ export function initializeBot(): void {
     )
   })
 
-  /**
-   * Main message handler for processing part number requests.
-   */
   bot.on('message', async (msg: TelegramBot.Message) => {
     const chatId = msg.chat.id
     const text = msg.text
@@ -61,7 +55,6 @@ export function initializeBot(): void {
       return // Игнорируем команды в этом обработчике
     }
 
-    // --- Проверка баланса и расчет стоимости ---
     if (!msg.from) return
     const user = await getOrCreateUser(msg.from.id, msg.from.username)
 
@@ -83,14 +76,13 @@ export function initializeBot(): void {
           ],
         },
       })
-      return // Останавливаем выполнение
+      return
     }
 
     console.log(`Received message from ${chatId}: ${text}`)
     bot.sendMessage(chatId, BOT_MESSAGES.processing)
 
     try {
-      // Списываем средства только перед началом реальной работы
       const newBalance = user.balance_cents - totalCost
       await updateUserBalance(user.user_id, newBalance)
 
@@ -103,18 +95,17 @@ export function initializeBot(): void {
             partNumber: pn,
             title: item ? item.title : 'Not Found',
             price: item ? item.price : 'N/A',
-            found: !!item, // Add a flag to indicate if item was found
+            found: !!item,
           }
         })
       )
 
-      // Filter out items that were not found
       const successfulResults = rawResults.filter((result) => result.found)
 
       if (successfulResults.length > 0) {
         bot.sendMessage(chatId, BOT_MESSAGES.searchComplete)
 
-        const reportBuffer = await createExcelReport(successfulResults) // Use filtered results
+        const reportBuffer = await createExcelReport(successfulResults)
         const fileName = `${FILE_NAME_PREFIX}${Date.now()}.xlsx`
 
         await bot.sendDocument(
@@ -126,7 +117,6 @@ export function initializeBot(): void {
             contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           }
         )
-        // Сообщаем об успешном списании и остатке
         await bot.sendMessage(
           chatId,
           BOT_MESSAGES.requestComplete(
@@ -135,7 +125,6 @@ export function initializeBot(): void {
           )
         )
       } else {
-        // Если ничего не найдено, возвращаем деньги, так как поиск был, но результата нет
         await updateUserBalance(user.user_id, user.balance_cents)
         bot.sendMessage(
           chatId,
@@ -147,7 +136,6 @@ export function initializeBot(): void {
     } catch (error) {
       console.error('An error occurred during message processing:', error)
       bot.sendMessage(chatId, BOT_MESSAGES.error)
-      // Возвращаем средства на баланс в случае ошибки
       await updateUserBalance(user.user_id, user.balance_cents)
       await bot.sendMessage(
         chatId,
@@ -155,8 +143,6 @@ export function initializeBot(): void {
       )
     }
   })
-
-  // --- Новые обработчики команд ---
 
   bot.onText(/\/balance/, async (msg) => {
     if (!msg.from) return
@@ -194,7 +180,6 @@ export function initializeBot(): void {
     )
   })
 
-  // --- Админ-команды ---
   bot.onText(/\/generatecoupon(?: (.+))?/, async (msg, match) => {
     if (msg.from?.id !== config.adminId) {
       return bot.sendMessage(msg.chat.id, BOT_MESSAGES.adminOnly)
@@ -218,7 +203,6 @@ export function initializeBot(): void {
     }
   })
 
-  // --- Обработка инлайн-кнопок ---
   bot.on('callback_query', (query) => {
     if (!query.message) return
     if (query.data === 'topup') {
@@ -229,9 +213,6 @@ export function initializeBot(): void {
     bot.answerCallbackQuery(query.id)
   })
 
-  /**
-   * Handles polling errors.
-   */
   bot.on('polling_error', (error) => {
     console.error('Polling error:', error)
   })

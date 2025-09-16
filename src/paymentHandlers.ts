@@ -4,6 +4,11 @@ import { getOrCreateUser, updateUserBalance } from "./database";
 import { BOT_MESSAGES } from "./constants";
 
 export async function sendInvoice(bot: TelegramBot, chatId: number) {
+    if (!config.paymentsEnabled || !config.stripeToken) {
+        await bot.sendMessage(chatId, BOT_MESSAGES.paymentsDisabled);
+        return;
+    }
+
     const title = BOT_MESSAGES.invoiceTitle;
     const description = BOT_MESSAGES.invoiceDescription((config.paymentAmountCents / 100).toFixed(2));
     const payload = `payment_${chatId}_${Date.now()}`;
@@ -23,13 +28,10 @@ export async function sendInvoice(bot: TelegramBot, chatId: number) {
 }
 
 export function registerPaymentHandlers(bot: TelegramBot) {
-    // Ответ на запрос перед списанием средств
     bot.on('pre_checkout_query', (query) => {
-        // Здесь можно добавить проверки, если нужно
         bot.answerPreCheckoutQuery(query.id, true);
     });
 
-    // Обработка успешного платежа
     bot.on('successful_payment', async (msg) => {
         if (!msg.from || !msg.successful_payment) return;
 

@@ -1,33 +1,31 @@
-import { getIsoDateMinusDays } from '../src/utils';
+import { getMainMenuKeyboard, getSearchSettingsKeyboard } from '../src/utils';
 
-describe('getIsoDateMinusDays', () => {
-  it('should return an ISO date string for today minus the specified number of days', () => {
-    const today = new Date();
-    const expectedDate = new Date();
-    expectedDate.setDate(today.getDate() - 5);
+describe('utils.ts', () => {
+  describe('getMainMenuKeyboard', () => {
+    it('should return keyboard for regular user', () => {
+      const keyboard = getMainMenuKeyboard(false);
+      const buttons = keyboard.inline_keyboard.flat();
+      expect(buttons.some(btn => btn.callback_data === 'generate_coupon_prompt')).toBe(false);
+    });
 
-    const result = getIsoDateMinusDays(5);
-
-    // We can't directly compare the full ISO string due to time, so we compare the date part
-    expect(result.substring(0, 10)).toEqual(expectedDate.toISOString().substring(0, 10));
+    it('should return keyboard with admin button for admin user', () => {
+      const keyboard = getMainMenuKeyboard(true);
+      const buttons = keyboard.inline_keyboard.flat();
+      expect(buttons.some(btn => btn.callback_data === 'generate_coupon_prompt')).toBe(true);
+    });
   });
 
-  it('should return an ISO date string for today when 0 days are specified', () => {
-    const today = new Date();
-    const expectedDate = new Date();
+  describe('getSearchSettingsKeyboard', () => {
+    it('should mark the current config with a check', () => {
+      const keyboard = getSearchSettingsKeyboard('SOLD');
+      const soldButton = keyboard.inline_keyboard[0].find(btn => btn.callback_data === 'set_search_config_SOLD');
+      expect(soldButton?.text.includes('✅')).toBe(true);
+    });
 
-    const result = getIsoDateMinusDays(0);
-
-    expect(result.substring(0, 10)).toEqual(expectedDate.toISOString().substring(0, 10));
-  });
-
-  it('should handle negative days by returning a future date', () => {
-    const today = new Date();
-    const expectedDate = new Date();
-    expectedDate.setDate(today.getDate() + 3);
-
-    const result = getIsoDateMinusDays(-3);
-
-    expect(result.substring(0, 10)).toEqual(expectedDate.toISOString().substring(0, 10));
+    it('should not mark other configs with a check', () => {
+      const keyboard = getSearchSettingsKeyboard('SOLD');
+      const activeButton = keyboard.inline_keyboard[0].find(btn => btn.callback_data === 'set_search_config_ACTIVE');
+      expect(activeButton?.text.includes('✅')).toBe(false);
+    });
   });
 });

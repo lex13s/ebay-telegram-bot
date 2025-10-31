@@ -1,28 +1,46 @@
 import { searchItemsByKeyword } from './ebayApi';
+import { EbayItem } from './types/ebay-api';
 
 export async function findItem(
-  partNumber: string,
+  partNumbers: string[], // Теперь принимает массив partNumbers
   configKey: string
-): Promise<{ title: string; price: string } | null> {
-  console.log(`Searching for part number: ${partNumber}, configKey: ${configKey}`);
+): Promise<Array<{ partNumber: string; result: { title: string; price: string } | null }>> {
+  console.log(`Searching for part numbers: ${partNumbers.join(', ')}, configKey: ${configKey}`);
 
   try {
-    const items = await searchItemsByKeyword(partNumber, configKey);
+    // Вызываем searchItemsByKeyword один раз с полным массивом partNumbers
+    const resultsForAllKeywords = await searchItemsByKeyword(partNumbers, configKey);
 
-    if (items.length > 0) {
-      const item = items[0];
-      const price = item.price?.value
-        ? `${item.price.value} ${item.price.currency}`
-        : 'Price not available';
-      console.log(`Found item: ${item.title}, Price: ${price}`);
-      return {
-        title: item.title || 'Title not available',
-        price: price,
-      };
-    } else {
-      console.log(`No items found for part number: ${partNumber}`);
-      return null;
+    const formattedResults: Array<{ partNumber: string; result: { title: string; price: string } | null }> = [];
+
+    // Обрабатываем результаты для каждого partNumber
+    for (let i = 0; i < partNumbers.length; i++) {
+      const currentPartNumber = partNumbers[i];
+      const itemsForPartNumber: EbayItem[] = resultsForAllKeywords[i] || [];
+
+      if (itemsForPartNumber.length > 0) {
+        const item = itemsForPartNumber[0];
+        const price = item.price?.value
+          ? `${item.price.value} ${item.price.currency}`
+          : 'Price not available';
+        console.log(`Found item for ${currentPartNumber}: ${item.title}, Price: ${price}`);
+        formattedResults.push({
+          partNumber: currentPartNumber,
+          result: {
+            title: item.title || 'Title not available',
+            price: price,
+          },
+        });
+      } else {
+        console.log(`No items found for part number: ${currentPartNumber}`);
+        formattedResults.push({
+          partNumber: currentPartNumber,
+          result: null,
+        });
+      }
     }
+    return formattedResults;
+
   } catch (error) {
     console.error('Error searching on eBay:', error);
     throw error;

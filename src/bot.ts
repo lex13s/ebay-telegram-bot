@@ -111,18 +111,15 @@ export function initializeBot(): void {
 
       await bot.sendMessage(chatId, (BOT_MESSAGES as any).searching(partNumbers.length));
 
-      const rawResults = [];
-      for (const pn of partNumbers) {
-          // Add a delay before each API call to respect rate limits
-          await delay(1000); 
-          const item = await findItem(pn, user.search_config_key || 'SOLD');
-          rawResults.push({
-              partNumber: pn,
-              title: item ? item.title : 'Not Found',
-              price: item ? item.price : 'N/A',
-              found: !!item,
-          });
-      }
+      // Вызываем findItem один раз с массивом partNumbers
+      const allResults = await findItem(partNumbers, user.search_config_key || 'SOLD');
+
+      const rawResults = allResults.map(res => ({
+          partNumber: res.partNumber,
+          title: res.result ? res.result.title : 'Not Found',
+          price: res.result ? res.result.price : 'N/A',
+          found: !!res.result,
+      }));
 
       const successfulResults = rawResults.filter((result) => result.found);
 
@@ -165,6 +162,11 @@ export function initializeBot(): void {
       if (totalCost > 0) {
         await updateUserBalance(user.user_id, user.balance_cents);
       }
+      const updatedUser = await getUser(user.user_id);
+      const currentBalance = updatedUser ? updatedUser.balance_cents : user.balance_cents;
+      await bot.sendMessage(chatId, BOT_MESSAGES.mainMenu((currentBalance / 100).toFixed(2)), {
+          reply_markup: getMainMenuKeyboard(userIsAdmin)
+      });
     }
   });
 
@@ -198,27 +200,35 @@ export function initializeBot(): void {
 
     switch (data) {
         case 'check_balance':
-            const user = await getUser(userId);
-            const balance = user ? user.balance_cents : 0;
             try {
+                const user = await getUser(userId);
+                const balance = user ? user.balance_cents : 0;
                 await bot.sendMessage(chatId, BOT_MESSAGES.currentBalance((balance / 100).toFixed(2)), {
                     reply_markup: getMainMenuKeyboard(userIsAdmin)
                 });
             } catch (error) {
-                handleApiError(error);
+                handleApiError(error, query.id, bot);
             }
             await bot.answerCallbackQuery(query.id);
             return;
 
         case 'topup':
-            await sendInvoice(bot, chatId);
+            try {
+                await sendInvoice(bot, chatId);
+            } catch (error) {
+                handleApiError(error, query.id, bot);
+            }
             await bot.answerCallbackQuery(query.id);
             return;
 
         case 'redeem_prompt':
-            await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponCode, {
-                reply_markup: { force_reply: true, selective: true },
-            });
+            try {
+                await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponCode, {
+                    reply_markup: { force_reply: true, selective: true },
+                });
+            } catch (error) {
+                handleApiError(error, query.id, bot);
+            }
             await bot.answerCallbackQuery(query.id);
             return;
 
@@ -227,9 +237,13 @@ export function initializeBot(): void {
                 await bot.answerCallbackQuery(query.id, { text: BOT_MESSAGES.adminOnly });
                 return;
             }
-            await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponValue, {
-                reply_markup: { force_reply: true, selective: true },
-            });
+            try {
+                await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponValue, {
+                    reply_markup: { force_reply: true, selective: true },
+                });
+            } catch (error) {
+                handleApiError(error, query.id, bot);
+            }
             await bot.answerCallbackQuery(query.id);
             return;
 

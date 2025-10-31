@@ -4,6 +4,8 @@ This is a Telegram bot that finds prices and listing titles for auto parts on eB
 
 ## Features
 
+- **Modular Architecture**: The bot is built with a modular architecture, separating concerns for easier maintenance and development.
+- **Strict Typing**: The project uses TypeScript and defines strict types for external API interactions, ensuring code quality and preventing common errors.
 - **Paid Usage Model**: Each search query costs a small fee, deducted from the user's balance.
 - **User Balances**: Each user has a persistent balance stored in a SQLite database.
 - **Trial Balance**: New users receive a small starting balance to test the bot.
@@ -27,6 +29,19 @@ This is a Telegram bot that finds prices and listing titles for auto parts on eB
 - `/generatecoupon <amount>` - Generate a new coupon with a specified value in USD.
 
 ---
+
+## Architecture
+
+- `src/bot.ts`: Handles the main Telegram bot logic, including command processing and user interactions.
+- `src/ebay.ts`: Contains the core functionality for searching items on eBay.
+- `src/ebayApi.ts`: Manages all interactions with the eBay API, including authentication and data fetching.
+- `src/excel.ts`: Responsible for generating Excel reports with search results.
+- `src/database.ts`: Manages the SQLite database for user balances and coupons.
+- `src/paymentHandlers.ts`: Handles payment processing via Stripe.
+- `src/constants.ts`: Stores all constant values used throughout the application.
+- `src/config.ts`: Manages configuration and environment variables.
+- `src/utils.ts`: Provides utility functions used across the project.
+- `src/types/ebay-api.d.ts`: Contains type definitions for the eBay API responses.
 
 ## Getting Started
 

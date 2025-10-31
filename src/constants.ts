@@ -77,4 +77,5 @@ export const BOT_MESSAGES = {
 /** The prefix for the generated Excel file name. */
 export const FILE_NAME_PREFIX = 'eBay_Report_'
 
-export const EBAY_SEARCH_LIMIT = 1
+export const EBAY_SEARCH_LIMIT = '1';
+export const TOKEN_EXPIRATION_BUFFER = 5 * 60 * 1000; // 5 minutes

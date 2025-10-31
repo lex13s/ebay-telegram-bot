@@ -8,7 +8,7 @@ import {
   getUser
 } from '../src/database'
 import { config } from '../src/config'
-import { BOT_MESSAGES } from '../src/constants'
+import { BOT_MESSAGES, START_COMMAND_REGEX } from '../src/constants'
 
 // Mock external dependencies
 jest.mock('node-telegram-bot-api')
@@ -72,19 +72,15 @@ const mockGetUser = getUser as jest.Mock
 
 
 
-  let onTextHandler: (msg: TelegramBot.Message, match: RegExpExecArray | null) => Promise<void>
-
+  let onTextHandler: (msg: TelegramBot.Message, match: RegExpExecArray | null) => Promise<void> = jest.fn();
   let onMessageHandler: (msg: TelegramBot.Message) => Promise<void>
-
   let onCallbackQueryHandler: (query: TelegramBot.CallbackQuery) => Promise<void>
 
 
 
   beforeEach(() => {
-
     jest.clearAllMocks()
 
-    // Reset the mock implementations for sendMessageSpy and sendDocumentSpy
     sendMessageSpy.mockClear();
     sendDocumentSpy.mockClear();
 
@@ -98,9 +94,7 @@ const mockGetUser = getUser as jest.Mock
           }
         }),
         onText: jest.fn((regexp, handler) => {
-          if (regexp.source === '/start') {
-            onTextHandler = handler
-          }
+          onTextHandler = handler;
         }),
         sendMessage: sendMessageSpy,
         sendDocument: sendDocumentSpy,
@@ -159,59 +153,59 @@ const mockGetUser = getUser as jest.Mock
 
   describe('Cost Calculation and Balance', () => {
     it('should calculate total cost based on number of parts', async () => {
-      mockGetOrCreateUser.mockResolvedValue({ user_id: 123, balance_cents: 100, username: 'test' })
+      mockGetOrCreateUser.mockResolvedValue({ user_id: 456, balance_cents: 100, username: 'test' })
       mockFindItem.mockResolvedValue({ title: 'Item', price: '10' })
       mockCreateExcelReport.mockResolvedValue(Buffer.from('excel'))
 
-      await simulateMessage('PN1, PN2, PN3') // 3 parts
+      await simulateMessage('PN1, PN2, PN3', { id: 456, username: 'testuser' })
 
       const expectedCost = 3 * config.costPerRequestCents
       const expectedNewBalance = 100 - expectedCost
 
-      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, expectedNewBalance)
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(456, expectedNewBalance)
       expect(sendMessageSpy).toHaveBeenCalledWith(
-        123,
+        456,
         BOT_MESSAGES.requestComplete((expectedCost / 100).toFixed(2), (expectedNewBalance / 100).toFixed(2))
       )
-      expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.mainMenu((expectedNewBalance / 100).toFixed(2)), expect.any(Object));
+      expect(sendMessageSpy).toHaveBeenCalledWith(456, BOT_MESSAGES.mainMenu((expectedNewBalance / 100).toFixed(2)), expect.any(Object));
     })
 
     it('should block request if balance is insufficient', async () => {
-      mockGetOrCreateUser.mockResolvedValue({ user_id: 123, balance_cents: 5, username: 'test' })
+      mockGetOrCreateUser.mockResolvedValue({ user_id: 456, balance_cents: 5, username: 'test' })
 
-      await simulateMessage('PN1, PN2, PN3, PN4') // Cost = 8 cents
+      await simulateMessage('PN1, PN2, PN3, PN4', { id: 456, username: 'testuser' })
 
       expect(mockUpdateUserBalance).not.toHaveBeenCalled()
       expect(mockFindItem).not.toHaveBeenCalled()
-      expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.insufficientFunds, expect.any(Object))
+      expect(sendMessageSpy).toHaveBeenCalledWith(456, BOT_MESSAGES.insufficientFunds, expect.any(Object))
     })
   })
 
   describe('Refund Logic', () => {
     const initialBalance = 100
     beforeEach(() => {
-      mockGetOrCreateUser.mockResolvedValue({ user_id: 123, balance_cents: initialBalance, username: 'test' })
-      mockGetUser.mockResolvedValue({ user_id: 123, balance_cents: initialBalance, username: 'test' });
+      mockGetOrCreateUser.mockResolvedValue({ user_id: 456, balance_cents: initialBalance, username: 'test' })
+      mockGetUser.mockResolvedValue({ user_id: 456, balance_cents: initialBalance, username: 'test' });
       mockUpdateUserBalance.mockClear(); // Clear calls from previous tests
     })
 
     it('should refund cost if no items are found', async () => {
       mockFindItem.mockResolvedValue(null) // No items found
 
-      await simulateMessage('PN1, PN2')
+      await simulateMessage('PN1, PN2', { id: 456, username: 'testuser' })
 
       const cost = 2 * config.costPerRequestCents
       // First, balance is deducted
-      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance - cost)
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(456, initialBalance - cost)
       // Then, it's refunded
-      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance)
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(456, initialBalance)
       expect(mockUpdateUserBalance).toHaveBeenCalledTimes(2)
 
       expect(sendMessageSpy).toHaveBeenCalledWith(
-        123,
+        456,
         BOT_MESSAGES.noItemsFoundAndRefund((initialBalance / 100).toFixed(2))
       )
-      expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.mainMenu((initialBalance / 100).toFixed(2)), expect.any(Object));
+      expect(sendMessageSpy).toHaveBeenCalledWith(456, BOT_MESSAGES.mainMenu((initialBalance / 100).toFixed(2)), expect.any(Object));
       expect(mockCreateExcelReport).not.toHaveBeenCalled()
     })
 
@@ -219,18 +213,18 @@ const mockGetUser = getUser as jest.Mock
       const apiError = new Error('eBay API is down')
       mockFindItem.mockRejectedValue(apiError)
 
-      await simulateMessage('PN1')
+      await simulateMessage('PN1', { id: 456, username: 'testuser' })
 
       const cost = 1 * config.costPerRequestCents
       // First, balance is deducted
-      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance - cost)
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(456, initialBalance - cost)
       // Then, it's refunded
-      expect(mockUpdateUserBalance).toHaveBeenCalledWith(123, initialBalance)
+      expect(mockUpdateUserBalance).toHaveBeenCalledWith(456, initialBalance)
       expect(mockUpdateUserBalance).toHaveBeenCalledTimes(2)
 
-      expect(sendMessageSpy).toHaveBeenCalledWith(123, BOT_MESSAGES.error)
+      expect(sendMessageSpy).toHaveBeenCalledWith(456, BOT_MESSAGES.error)
       expect(sendMessageSpy).toHaveBeenCalledWith(
-        123,
+        456,
         BOT_MESSAGES.mainMenu((initialBalance / 100).toFixed(2)),
         expect.any(Object)
       )

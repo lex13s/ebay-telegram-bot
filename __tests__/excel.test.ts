@@ -1,27 +1,21 @@
-import { createExcelReport, ExcelRow } from '../src/excel'
+import { createExcelReport, ExcelRow } from '../src/excel';
 
 describe('excel.ts', () => {
-  it('should create an Excel buffer from data', async () => {
-    const testData: ExcelRow[] = [
-      { partNumber: 'PN001', title: 'Test Item 1', price: '10.99' },
-      { partNumber: 'PN002', title: 'Test Item 2', price: 125.0 },
-      { partNumber: 'PN003', title: 'Not Found', price: 'N/A' },
-    ]
+  describe('createExcelReport', () => {
+    it('should create a buffer for valid data', async () => {
+      const data: ExcelRow[] = [
+        { partNumber: 'PN1', title: 'Title 1', price: 100 },
+        { partNumber: 'PN2', title: 'Title 2', price: 'N/A' },
+      ];
+      const buffer = await createExcelReport(data);
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
 
-    const buffer = await createExcelReport(testData)
-
-    // Check if the output is a Buffer
-    expect(buffer).toBeInstanceOf(Buffer)
-
-    // Check if the buffer is not empty
-    expect(buffer.length).toBeGreaterThan(0)
-  })
-
-  it('should handle empty data array', async () => {
-    const testData: ExcelRow[] = []
-    const buffer = await createExcelReport(testData)
-
-    expect(buffer).toBeInstanceOf(Buffer)
-    expect(buffer.length).toBeGreaterThan(0) // Excel file with just headers
-  })
-})
+    it('should create a valid buffer for empty data', async () => {
+      const buffer = await createExcelReport([]);
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+  });
+});

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import { findItem } from './ebay'
+import { findItem } from '../src/ebay'
 
 // A common part number for testing purposes.
 const testPartNumber = '90915-YZZE1'

@@ -24,7 +24,7 @@ describe('ebay.ts', () => {
     };
     mockSearchItemsByKeyword.mockResolvedValue([mockItem]);
 
-    const item = await findItem('any-part', 'SOLD');
+    const item = await findItem('any-part', 'SOLD'); // Ensure configKey is provided
 
     expect(mockSearchItemsByKeyword).toHaveBeenCalledTimes(1);
     expect(item).toEqual({ title: 'Genuine OEM Part', price: '42.00 USD' });
@@ -33,7 +33,7 @@ describe('ebay.ts', () => {
   it('should return null if API finds no items', async () => {
     mockSearchItemsByKeyword.mockResolvedValue([]);
 
-    const item = await findItem('non-existent-part', 'SOLD');
+    const item = await findItem('non-existent-part', 'SOLD'); // Ensure configKey is provided
 
     expect(mockSearchItemsByKeyword).toHaveBeenCalledTimes(1);
     expect(item).toBeNull();
@@ -43,7 +43,7 @@ describe('ebay.ts', () => {
     const apiError = new Error('eBay API Error');
     mockSearchItemsByKeyword.mockRejectedValue(apiError);
 
-    await expect(findItem('any-part', 'SOLD')).rejects.toThrow(apiError);
+    await expect(findItem('any-part', 'SOLD')).rejects.toThrow(apiError); // Ensure configKey is provided
 
     expect(mockSearchItemsByKeyword).toHaveBeenCalledTimes(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith('Error searching on eBay:', apiError);

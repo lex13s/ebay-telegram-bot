@@ -1,4 +1,5 @@
 export interface EbayItem {
+  itemId: string;
   title?: string;
   price?: {
     value: string;

@@ -3,17 +3,32 @@ import { findItem } from './ebay';
 import { createExcelReport } from './excel';
 import { BOT_MESSAGES, FILE_NAME_PREFIX, START_COMMAND_REGEX, PART_NUMBER_DELIMITER_REGEX } from './constants';
 import { config } from './config';
-import { getOrCreateUser, getUser, updateUserBalance } from './database';
+import { getOrCreateUser, getUser, updateUserBalance, updateUserSearchConfig } from './database';
 import { sendInvoice, registerPaymentHandlers } from './paymentHandlers';
 import {
     isAdmin,
     getMainMenuKeyboard,
+    getSearchSettingsKeyboard,
     processCouponCode,
     processCouponGeneration
 } from './utils';
 
+// Helper to introduce a delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper to handle Telegram API errors, especially "message is not modified"
+async function handleApiError(error: any, queryId?: string, bot?: TelegramBot) {
+    if (error instanceof Error && error.message.includes('message is not modified')) {
+        // Ignore this specific error, as it's expected on repeated button clicks
+        if (queryId && bot) {
+            await bot.answerCallbackQuery(queryId, { text: 'Настройки уже отображены.' });
+        }
+    } else {
+        console.error('Telegram API Error:', error);
+    }
+}
+
 export function initializeBot(): void {
-  // Set polling to false initially to start it manually in a try-catch block
   const bot = new TelegramBot(config.telegramToken, { polling: false });
 
   if (config.paymentsEnabled) {
@@ -21,47 +36,32 @@ export function initializeBot(): void {
     console.log('Payment handlers have been registered.');
   }
 
-  // Main command handler: /start
   bot.onText(START_COMMAND_REGEX, async (msg: TelegramBot.Message) => {
     if (!msg.from) return;
     const user = await getOrCreateUser(msg.from.id, msg.from.username);
     const userIsAdmin = isAdmin(user.user_id);
 
     try {
-        // 1. Send a welcome message and explicitly remove the old reply keyboard
         await bot.sendMessage(msg.chat.id, BOT_MESSAGES.start(msg.from.first_name), {
             reply_markup: { remove_keyboard: true },
         });
     } catch (error) {
-        // Ignore if message is not modified, otherwise rethrow
-        if (error instanceof Error && error.message.includes('message is not modified')) {
-            // Do nothing, message is already there
-        } else {
-            console.error('Error sending welcome message:', error);
-        }
+        handleApiError(error);
     }
 
     try {
-        // 2. Send the main menu with the new inline keyboard
         await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu((user.balance_cents / 100).toFixed(2)), {
             reply_markup: getMainMenuKeyboard(userIsAdmin)
         });
     } catch (error) {
-        // Ignore if message is not modified, otherwise rethrow
-        if (error instanceof Error && error.message.includes('message is not modified')) {
-            // Do nothing, message is already there
-        } else {
-            console.error('Error sending main menu:', error);
-        }
+        handleApiError(error);
     }
   });
 
-  // Main message handler for part numbers and replies
   bot.on('message', async (msg: TelegramBot.Message) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    // Handle replies to our prompts (for coupons)
     if (msg.reply_to_message && text) {
         if (msg.reply_to_message.text === BOT_MESSAGES.enterCouponCode) {
             await processCouponCode(bot, msg, text);
@@ -73,12 +73,8 @@ export function initializeBot(): void {
         }
     }
 
-    // Ignore commands in the general message handler
-    if (!text || text.startsWith('/')) {
-      return;
-    }
+    if (!text || text.startsWith('/')) return;
 
-    // --- Part Number Processing Logic ---
     if (!msg.from) return;
     const user = await getOrCreateUser(msg.from.id, msg.from.username);
     const userIsAdmin = isAdmin(user.user_id);
@@ -86,7 +82,7 @@ export function initializeBot(): void {
     const partNumbers = text.split(PART_NUMBER_DELIMITER_REGEX).filter((pn) => pn.trim().length > 0);
 
     if (partNumbers.length === 0) {
-      bot.sendMessage(chatId, BOT_MESSAGES.noPartNumbers);
+      await bot.sendMessage(chatId, BOT_MESSAGES.noPartNumbers);
       return;
     }
 
@@ -104,7 +100,6 @@ export function initializeBot(): void {
       return;
     }
 
-    console.log(`Received message from ${chatId}: ${text}`);
     await bot.sendMessage(chatId, BOT_MESSAGES.processing);
 
     try {
@@ -116,17 +111,18 @@ export function initializeBot(): void {
 
       await bot.sendMessage(chatId, (BOT_MESSAGES as any).searching(partNumbers.length));
 
-      const rawResults = await Promise.all(
-        partNumbers.map(async (pn) => {
-          const item = await findItem(pn);
-          return {
-            partNumber: pn,
-            title: item ? item.title : 'Not Found',
-            price: item ? item.price : 'N/A',
-            found: !!item,
-          };
-        })
-      );
+      const rawResults = [];
+      for (const pn of partNumbers) {
+          // Add a delay before each API call to respect rate limits
+          await delay(1000); 
+          const item = await findItem(pn, user.search_config_key || 'SOLD');
+          rawResults.push({
+              partNumber: pn,
+              title: item ? item.title : 'Not Found',
+              price: item ? item.price : 'N/A',
+              found: !!item,
+          });
+      }
 
       const successfulResults = rawResults.filter((result) => result.found);
 
@@ -136,22 +132,13 @@ export function initializeBot(): void {
         const reportBuffer = await createExcelReport(successfulResults);
         const fileName = `${FILE_NAME_PREFIX}${Date.now()}.xlsx`;
 
-        await bot.sendDocument(
-          chatId,
-          reportBuffer,
-          {},
-          {
-            filename: fileName,
-            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          }
-        );
-        
-        const finalMessage = totalCost > 0 
+        await bot.sendDocument(chatId, reportBuffer, {}, { filename: fileName, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        const finalMessage = totalCost > 0
             ? BOT_MESSAGES.requestComplete((totalCost / 100).toFixed(2), (newBalance / 100).toFixed(2))
             : BOT_MESSAGES.requestCompleteFree;
-        
+
         await bot.sendMessage(chatId, finalMessage);
-        // Also send the main menu again after a successful search
         await bot.sendMessage(chatId, BOT_MESSAGES.mainMenu((newBalance / 100).toFixed(2)), {
             reply_markup: getMainMenuKeyboard(userIsAdmin)
         });
@@ -166,7 +153,6 @@ export function initializeBot(): void {
         }
 
         await bot.sendMessage(chatId, finalMessage);
-        // Resend main menu on failure too
         const updatedUser = await getUser(user.user_id);
         const currentBalance = updatedUser ? updatedUser.balance_cents : user.balance_cents;
         await bot.sendMessage(chatId, BOT_MESSAGES.mainMenu((currentBalance / 100).toFixed(2)), {
@@ -182,48 +168,103 @@ export function initializeBot(): void {
     }
   });
 
-  // Central handler for all button clicks
   bot.on('callback_query', async (query) => {
     if (!query.message || !query.from) return;
 
     const chatId = query.message.chat.id;
     const userId = query.from.id;
     const userIsAdmin = isAdmin(userId);
+    const data = query.data;
 
-    switch (query.data) {
+    if (data && data.startsWith('set_search_config_')) {
+        const newConfigKey = data.replace('set_search_config_', '');
+        await updateUserSearchConfig(userId, newConfigKey);
+        const updatedUser = await getUser(userId);
+        if (updatedUser) {
+            try {
+                await bot.editMessageReplyMarkup(getSearchSettingsKeyboard(updatedUser.search_config_key), {
+                    chat_id: chatId,
+                    message_id: query.message.message_id,
+                });
+                await bot.answerCallbackQuery(query.id, { text: 'Настройки обновлены!' });
+            } catch (error) {
+                handleApiError(error, query.id, bot);
+            }
+        } else {
+             await bot.answerCallbackQuery(query.id, { text: 'Пользователь не найден.' });
+        }
+        return;
+    }
+
+    switch (data) {
         case 'check_balance':
             const user = await getUser(userId);
             const balance = user ? user.balance_cents : 0;
-            // Send a new message with the balance and keyboard
             try {
                 await bot.sendMessage(chatId, BOT_MESSAGES.currentBalance((balance / 100).toFixed(2)), {
                     reply_markup: getMainMenuKeyboard(userIsAdmin)
                 });
             } catch (error) {
-                console.error('Error sending balance message:', error);
-                await bot.sendMessage(chatId, 'Произошла ошибка при получении баланса. Пожалуйста, попробуйте позже.');
+                handleApiError(error);
             }
-            break;
+            await bot.answerCallbackQuery(query.id);
+            return;
 
         case 'topup':
-            sendInvoice(bot, chatId);
-            break;
+            await sendInvoice(bot, chatId);
+            await bot.answerCallbackQuery(query.id);
+            return;
 
         case 'redeem_prompt':
             await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponCode, {
                 reply_markup: { force_reply: true, selective: true },
             });
-            break;
+            await bot.answerCallbackQuery(query.id);
+            return;
 
         case 'generate_coupon_prompt':
-            if (!userIsAdmin) return bot.answerCallbackQuery(query.id, { text: BOT_MESSAGES.adminOnly });
+            if (!userIsAdmin) {
+                await bot.answerCallbackQuery(query.id, { text: BOT_MESSAGES.adminOnly });
+                return;
+            }
             await bot.sendMessage(chatId, BOT_MESSAGES.enterCouponValue, {
                 reply_markup: { force_reply: true, selective: true },
             });
-            break;
-    }
+            await bot.answerCallbackQuery(query.id);
+            return;
 
-    bot.answerCallbackQuery(query.id);
+        case 'search_settings':
+            const userForSettings = await getUser(userId);
+            if (userForSettings) {
+                try {
+                    await bot.editMessageText('Выберите тип поиска по умолчанию:', {
+                        chat_id: chatId,
+                        message_id: query.message.message_id,
+                        reply_markup: getSearchSettingsKeyboard(userForSettings.search_config_key)
+                    });
+                } catch (e) {
+                    handleApiError(e, query.id, bot);
+                }
+            }
+            await bot.answerCallbackQuery(query.id);
+            return;
+
+        case 'back_to_main_menu':
+            const userForMenu = await getUser(userId);
+            if (userForMenu) {
+                try {
+                    await bot.editMessageText(BOT_MESSAGES.mainMenu((userForMenu.balance_cents / 100).toFixed(2)), {
+                        chat_id: chatId,
+                        message_id: query.message.message_id,
+                        reply_markup: getMainMenuKeyboard(userIsAdmin)
+                    });
+                } catch (e) {
+                    handleApiError(e, query.id, bot);
+                }
+            }
+            await bot.answerCallbackQuery(query.id);
+            return;
+    }
   });
 
   bot.on('polling_error', (error) => {
@@ -232,11 +273,13 @@ export function initializeBot(): void {
 
   console.log('Bot has been initialized and started...');
 
-  // Manually start polling after all handlers are set up
-  try {
-    bot.startPolling();
-    console.log('Bot polling started.');
-  } catch (error) {
-    console.error('Error starting bot polling:', error);
-  }
+  const startPolling = async () => {
+    try {
+      await bot.startPolling();
+      console.log('Bot polling started.');
+    } catch (error) {
+      console.error('Error starting bot polling:', error);
+    }
+  };
+  startPolling();
 }

@@ -1,7 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { config } from './config';
 import { BOT_MESSAGES } from './constants';
-import { createCoupon, getCoupon, activateCoupon, updateUserBalance, getOrCreateUser } from './database';
+import { createCoupon, getCoupon, activateCoupon, updateUserBalance, getOrCreateUser, User } from './database';
 import { randomBytes } from 'crypto';
 
 /**
@@ -23,12 +23,34 @@ export function getMainMenuKeyboard(forAdmin: boolean): TelegramBot.InlineKeyboa
         ],
         [
             { text: '🎁 Активировать купон', callback_data: 'redeem_prompt' },
+            { text: '⚙️ Настройки поиска', callback_data: 'search_settings' },
         ]
     ];
 
     if (forAdmin) {
         keyboard[1].push({ text: '🛠️ Создать купон', callback_data: 'generate_coupon_prompt' });
     }
+
+    return { inline_keyboard: keyboard };
+}
+
+/**
+ * Generates the search settings keyboard.
+ * @param currentUserConfig The user's current search configuration key.
+ */
+export function getSearchSettingsKeyboard(currentUserConfig: string): TelegramBot.InlineKeyboardMarkup {
+    const searchTypes = [
+        { text: '🟢 Активные', key: 'ACTIVE' },
+        { text: '🔴 Проданные', key: 'SOLD' },
+        { text: '⚫ Завершенные', key: 'ENDED' },
+    ];
+
+    const keyboard: TelegramBot.InlineKeyboardButton[][] = [searchTypes.map(type => ({
+        text: currentUserConfig === type.key ? `✅ ${type.text}` : type.text,
+        callback_data: `set_search_config_${type.key}`,
+    }))];
+
+    keyboard.push([{ text: '⬅️ Назад', callback_data: 'back_to_main_menu' }]);
 
     return { inline_keyboard: keyboard };
 }
@@ -113,4 +135,10 @@ export async function processCouponGeneration(bot: TelegramBot, msg: TelegramBot
     await bot.sendMessage(msg.chat.id, BOT_MESSAGES.mainMenu((user.balance_cents / 100).toFixed(2)), {
         reply_markup: getMainMenuKeyboard(true)
     });
+}
+
+export function getIsoDateMinusDays(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
 }

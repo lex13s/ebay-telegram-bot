@@ -5,6 +5,7 @@ export interface User {
     user_id: number;
     username: string | null;
     balance_cents: number;
+    search_config_key: string;
 }
 
 export interface Coupon {
@@ -30,9 +31,17 @@ export function initDb(): Promise<void> {
                     CREATE TABLE IF NOT EXISTS users (
                         user_id INTEGER PRIMARY KEY,
                         username TEXT,
-                        balance_cents INTEGER NOT NULL DEFAULT 0
+                        balance_cents INTEGER NOT NULL DEFAULT 0,
+                        search_config_key TEXT NOT NULL DEFAULT 'SOLD'
                     );
                 `);
+
+                // Add search_config_key column if it doesn't exist (for existing databases)
+                db.run(`ALTER TABLE users ADD COLUMN search_config_key TEXT NOT NULL DEFAULT 'SOLD'`, (err) => {
+                    if (err && !err.message.includes('duplicate column name')) {
+                        console.error("Error adding column to users table:", err);
+                    }
+                });
 
                 db.run(`
                     CREATE TABLE IF NOT EXISTS coupons (
@@ -83,6 +92,10 @@ export async function getUser(userId: number): Promise<User | undefined> {
 
 export async function updateUserBalance(userId: number, newBalance: number): Promise<void> {
     return dbRun('UPDATE users SET balance_cents = ? WHERE user_id = ?', [newBalance, userId]);
+}
+
+export async function updateUserSearchConfig(userId: number, newConfigKey: string): Promise<void> {
+    return dbRun('UPDATE users SET search_config_key = ? WHERE user_id = ?', [newConfigKey, userId]);
 }
 
 export async function createCoupon(code: string, valueCents: number): Promise<void> {

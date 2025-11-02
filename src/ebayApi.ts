@@ -76,78 +76,119 @@ async function searchActiveItems(keyword: string, config: BrowseApiConfig): Prom
         const authToken = await getEbayAppToken();
         ebayApi.OAuth2.setCredentials(authToken);
 
-        console.time(`eBay Browse API Search for ${keyword}`);
         const response = await ebayApi.buy.browse.search({
             q: keyword,
             limit: EBAY_SEARCH_LIMIT,
             filter: config.filter,
+            ...(config.sort ? { sort: config.sort } : {}),
         });
-        console.timeEnd(`eBay Browse API Search for ${keyword}`);
 
         const items = response.itemSummaries || [];
         return items.map((item: any) => mapToEbayItem(item, 'Browse'));
     } catch (error) {
-        console.error(`Error searching active items for keyword \'${keyword}\':`, error);
+        console.error(`Error searching active items for keyword '${keyword}':`, error);
         return []; // Возвращаем пустой массив в случае ошибки
     }
 }
 
+// Simple in-memory cache for Finding API responses to reduce repeated calls
+const findingCache: Map<string, { expiry: number; items: any[] }> = new Map();
+const FINDING_CACHE_TTL_MS = Number.parseInt(process.env.FINDING_CACHE_TTL_MS || '600000', 10) || 600000;
+
 async function searchCompletedItems(keyword: string, config: FindingApiConfig): Promise<EbayItem[]> {
+    // Choose primary marketplace: env override or heuristic (Motors for auto-like part numbers)
+    const autoPartPattern = /[A-Za-z0-9]+-[A-Za-z0-9-]+/;
+    const primaryGlobalId = (process.env.FINDING_GLOBAL_ID_LIST?.split(',').map(s => s.trim()).filter(Boolean)[0])
+      || process.env.FINDING_GLOBAL_ID
+      || (autoPartPattern.test(String(keyword)) ? 'EBAY-MOTOR' : 'EBAY-US');
+
+    const DEBUG = process.env.DEBUG_EBAY_FINDING === '1' || process.env.DEBUG_EBAY_FINDING === 'true';
+
+    const isRateLimitError = (err: any) => {
+        const text = [err?.meta?.message, err?.firstError?.message, err?.message].filter(Boolean).join(' ');
+        return /RateLimiter|exceeded the number of times/i.test(text);
+    };
+
     try {
-        // Reusing the module-level ebayApi instance
-        // For Finding API, authentication might be different or not required in the same way as Browse API.
-        // Assuming it uses the same app token or handles its own auth internally if not set.
-        // If Finding API also needs the app token, the setCredentials call should be here as well.
-        // For now, keeping it as is, assuming it works without explicit setCredentials for Finding API if it's not Browse.
-
-        const requestParams: any = {
-            keywords: keyword,
-            itemFilter: config.itemFilter,
-            outputSelector: ['AspectHistogram'],
-            paginationInput: {
-                entriesPerPage: EBAY_SEARCH_LIMIT,
-                pageNumber: 1,
-            },
-        };
-
-        if (config.sortOrder) {
-            requestParams.sortOrder = config.sortOrder;
+        // Build itemFilter (string values)
+        const itemFilterBase = (config.itemFilter || []).map(({ name, value }) => ({
+            name,
+            value: Array.isArray(value) ? value.map(v => String(v)) : String(value),
+        }));
+        const itemFilter: Array<{ name: string; value: string }> = [...itemFilterBase as any];
+        if (!itemFilter.some(f => f.name === 'EndTimeFrom')) {
+            const ninetyDaysAgoISO = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+            itemFilter.push({ name: 'EndTimeFrom', value: ninetyDaysAgoISO });
+        }
+        if (!itemFilter.some(f => f.name === 'EndTimeTo')) {
+            itemFilter.push({ name: 'EndTimeTo', value: new Date().toISOString() });
+        }
+        if (!itemFilter.some(f => f.name === 'HideDuplicateItems')) {
+            itemFilter.push({ name: 'HideDuplicateItems', value: 'true' });
         }
 
-        const response = await ebayApi.finding.findCompletedItems(requestParams);
+        const entriesPerPageNum = Number.parseInt(String(EBAY_SEARCH_LIMIT), 10);
+        const baseKeyword = String(keyword || '').trim();
+        const params: any = {
+            keywords: baseKeyword,
+            itemFilter,
+            paginationInput: {
+                entriesPerPage: Number.isFinite(entriesPerPageNum) && entriesPerPageNum > 0 ? entriesPerPageNum : 1,
+                pageNumber: 1,
+            },
+            ...(config.sortOrder ? { sortOrder: config.sortOrder } : {}),
+        };
 
-        const items = response.searchResult?.item || [];
-        return items.map((item: any) => mapToEbayItem(item, 'Finding'));
-    } catch (error) {
-        console.error(`Error searching completed items for keyword \'${keyword}\':`, error);
-        return []; // Возвращаем пустой массив в случае ошибки
+        if (DEBUG) console.log(`[FindingAPI][REQ][${primaryGlobalId}] kw=${baseKeyword}`, JSON.stringify(params));
+        const resp = await ebayApi.finding.findCompletedItems(params, {
+            headers: { 'X-EBAY-SOA-GLOBAL-ID': primaryGlobalId }
+        });
+        const items = resp?.searchResult?.item || [];
+        if (DEBUG) console.log(`[FindingAPI][RESP][${primaryGlobalId}] kw=${baseKeyword}: ${items.length} items`);
+        return items.map((it: any) => mapToEbayItem(it, 'Finding'));
+    } catch (err: any) {
+        if (isRateLimitError(err)) {
+            if (DEBUG) console.warn(`[FindingAPI][RATE_LIMIT][${primaryGlobalId}] kw=${keyword}`);
+            const e = new Error('EBAY_RATE_LIMIT');
+            (e as any).cause = err;
+            throw e;
+        }
+        if (DEBUG) console.warn(`[FindingAPI][ERR][${primaryGlobalId}] kw=${keyword}:`, err?.message || err);
+        return [];
     }
 }
 
 // --- MAIN EXPORT ---
 
 export async function searchItemsByKeyword(
-  keywords: string[], // Изменено на массив строк
+  keywords: string[],
   configKey: string
-): Promise<EbayItem[][]> { // Изменено на массив массивов EbayItem
+): Promise<EbayItem[][]> {
   const searchConfig = getEbaySearchConfig(configKey);
 
-  const promises = keywords.map(keyword => {
-    if (configKey === 'ACTIVE') {
-      return searchActiveItems(keyword, searchConfig as BrowseApiConfig);
-    } else {
-      return searchCompletedItems(keyword, searchConfig as FindingApiConfig);
+  if (configKey === 'ACTIVE') {
+    const promises = keywords.map(keyword => searchActiveItems(keyword, searchConfig as BrowseApiConfig));
+    try {
+      return await Promise.all(promises);
+    } catch (error) {
+      console.error('Error in Promise.all for searchItemsByKeyword (ACTIVE):', error);
+      return keywords.map(() => []);
     }
-  });
-
-  try {
-    const results = await Promise.all(promises);
-    return results;
-  } catch (error) {
-    console.error('Error in Promise.all for searchItemsByKeyword:', error);
-    // Если Promise.all отклоняется, это означает, что один из промисов отклонился.
-    // Поскольку searchActiveItems/searchCompletedItems уже возвращают [],
-    // это может произойти только если что-то пошло не так с самим Promise.all или map.
-    return keywords.map(() => []); // Возвращаем массив пустых массивов для каждого ключевого слова
   }
+
+  const results: EbayItem[][] = [];
+  for (const keyword of keywords) {
+    try {
+      const arr = await searchCompletedItems(keyword, searchConfig as FindingApiConfig);
+      results.push(arr);
+    } catch (e: any) {
+      if (typeof e?.message === 'string' && e.message.startsWith('EBAY_RATE_LIMIT')) {
+        // Propagate rate limit so caller (findItem/bot) can display proper message and avoid charging
+        throw e;
+      }
+      console.error('Error searching completed keyword:', keyword, e);
+      results.push([]);
+    }
+  }
+  return results;
 }

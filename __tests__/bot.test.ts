@@ -154,7 +154,11 @@ const mockGetUser = getUser as jest.Mock
   describe('Cost Calculation and Balance', () => {
     it('should calculate total cost based on number of parts', async () => {
       mockGetOrCreateUser.mockResolvedValue({ user_id: 456, balance_cents: 100, username: 'test' })
-      mockFindItem.mockResolvedValue({ title: 'Item', price: '10' })
+      mockFindItem.mockResolvedValue([
+        { partNumber: 'PN1', result: { title: 'Item 1', price: '10 USD' } },
+        { partNumber: 'PN2', result: { title: 'Item 2', price: '20 USD' } },
+        { partNumber: 'PN3', result: { title: 'Item 3', price: '30 USD' } },
+      ])
       mockCreateExcelReport.mockResolvedValue(Buffer.from('excel'))
 
       await simulateMessage('PN1, PN2, PN3', { id: 456, username: 'testuser' })
@@ -190,7 +194,10 @@ const mockGetUser = getUser as jest.Mock
     })
 
     it('should refund cost if no items are found', async () => {
-      mockFindItem.mockResolvedValue(null) // No items found
+      mockFindItem.mockResolvedValue([
+        { partNumber: 'PN1', result: null },
+        { partNumber: 'PN2', result: null },
+      ])
 
       await simulateMessage('PN1, PN2', { id: 456, username: 'testuser' })
 
@@ -262,7 +269,7 @@ const mockGetUser = getUser as jest.Mock
       expect(sendMessageSpy).not.toHaveBeenCalledWith(123, BOT_MESSAGES.enterCouponValue, expect.any(Object));
       expect(botInstance.answerCallbackQuery).toHaveBeenCalledWith('queryId', { text: BOT_MESSAGES.adminOnly });
     });
-  });
+  })
 
   describe('Coupon Processing', () => {
     it('should process coupon code from reply', async () => {
@@ -276,4 +283,4 @@ const mockGetUser = getUser as jest.Mock
       await onMessageHandler(mockMsg);
       expect(require('../src/utils').processCouponGeneration).toHaveBeenCalledWith(botInstance, mockMsg, '10.00');
     });
-  });
+  })

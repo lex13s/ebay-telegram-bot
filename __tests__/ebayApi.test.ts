@@ -1,27 +1,39 @@
-import { searchItemsByKeyword } from '../src/ebayApi';
+import { EbayItem } from '../src/types/ebay-api';
 
 // Mock the external dependency 'ebay-api'
-// This mock will return the same mockEbayApi object every time new eBayApi() is called
-const mockEbayApi = {
+const mockBrowseSearch = jest.fn();
+const mockFindingFindCompletedItems = jest.fn();
+const mockSetCredentials = jest.fn();
+
+const mockEbayApiInstance = {
   buy: {
     browse: {
-      search: jest.fn(),
+      search: mockBrowseSearch,
     },
   },
   finding: {
-    findCompletedItems: jest.fn(),
+    findCompletedItems: mockFindingFindCompletedItems,
   },
-  OAuth2: { // Add OAuth2 mock
-    setCredentials: jest.fn(),
+  OAuth2: {
+    setCredentials: mockSetCredentials,
   },
 };
 
-jest.mock('ebay-api', () => {
-  return jest.fn(() => mockEbayApi); // Always return the same mockEbayApi object
+// Ensure mocks are set up before the module under test is required
+jest.doMock('ebay-api', () => ({
+  __esModule: true,
+  default: jest.fn(() => mockEbayApiInstance),
+}));
+
+// Mock the EbayAuthToken constructor and its getApplicationToken method
+jest.doMock('ebay-oauth-nodejs-client', () => {
+  return jest.fn().mockImplementation(() => ({
+    getApplicationToken: jest.fn(() => Promise.resolve(JSON.stringify({ access_token: 'mockAppToken', expires_in: 3600 }))),
+  }));
 });
 
-// Mock the config module as it's used by ebayApi.ts
-jest.mock('../src/config', () => ({
+// Mock the config module as it's used by ebayApi.ts (if required later)
+jest.doMock('../src/config', () => ({
   config: {
     ebayAppId: 'mockAppId',
     ebayCertId: 'mockCertId',
@@ -31,56 +43,126 @@ jest.mock('../src/config', () => ({
   },
 }));
 
-// Get the mocked instance of eBayApi (it's the same object returned by the mock)
-const MockEbayApiConstructor = require('ebay-api');
-const mockEbayApiInstance = MockEbayApiConstructor(); // This will be the 'mockEbayApi' object
+// Dynamically import the module under test AFTER all mocks are set up
+const { searchItemsByKeyword } = require('../src/ebayApi');
 
 describe('ebayApi.ts', () => {
   beforeEach(() => {
     // Clear mocks before each test
-    mockEbayApiInstance.buy.browse.search.mockClear();
-    mockEbayApiInstance.finding.findCompletedItems.mockClear();
-    mockEbayApiInstance.OAuth2.setCredentials.mockClear(); // Clear OAuth2 mock
-    MockEbayApiConstructor.mockClear(); // Clear the constructor mock as well
+    mockBrowseSearch.mockClear();
+    mockFindingFindCompletedItems.mockClear();
+    mockSetCredentials.mockClear();
+    (require('ebay-api').default as jest.Mock).mockClear();
   });
 
   describe('searchItemsByKeyword', () => {
-    it('should call searchActiveItems for ACTIVE config', async () => {
-      // Mock the specific API call that searchActiveItems makes
-      mockEbayApiInstance.buy.browse.search.mockResolvedValue({ itemSummaries: [{ title: 'Active Item' }] });
-      mockEbayApiInstance.OAuth2.setCredentials.mockResolvedValue(true); // Mock setCredentials
+    it('should call searchActiveItems for ACTIVE config with a single keyword', async () => {
+      mockBrowseSearch.mockResolvedValue({ itemSummaries: [{ title: 'Active Item' }] });
 
-      await searchItemsByKeyword('test', 'ACTIVE');
+      const result = await searchItemsByKeyword(['test'], 'ACTIVE');
 
-      expect(MockEbayApiConstructor).toHaveBeenCalledTimes(1); // Expect constructor to be called
-      expect(mockEbayApiInstance.OAuth2.setCredentials).toHaveBeenCalledTimes(1); // Expect setCredentials to be called
-      expect(mockEbayApiInstance.buy.browse.search).toHaveBeenCalledTimes(1);
-      expect(mockEbayApiInstance.buy.browse.search).toHaveBeenCalledWith(expect.any(Object));
-      expect(mockEbayApiInstance.finding.findCompletedItems).not.toHaveBeenCalled();
+      expect(mockSetCredentials).toHaveBeenCalledTimes(1);
+      expect(mockSetCredentials).toHaveBeenCalledWith('mockAppToken');
+      expect(mockBrowseSearch).toHaveBeenCalledTimes(1);
+      expect(mockBrowseSearch).toHaveBeenCalledWith(expect.objectContaining({ q: 'test' }));
+      expect(mockFindingFindCompletedItems).not.toHaveBeenCalled();
+      expect(result).toEqual([[{ itemId: 'N/A', title: 'Active Item', price: { value: '0', currency: 'N/A' } }]]);
     });
 
-    it('should call searchCompletedItems for SOLD config', async () => {
-      // Mock the specific API call that searchCompletedItems makes
-      mockEbayApiInstance.finding.findCompletedItems.mockResolvedValue({ searchResult: { item: [{ title: 'Sold Item' }] } });
+    it('should call searchCompletedItems for SOLD config with a single keyword', async () => {
+      mockFindingFindCompletedItems.mockResolvedValue({ searchResult: { item: [{ title: 'Sold Item' }] } });
 
-      await searchItemsByKeyword('test', 'SOLD');
+      const result = await searchItemsByKeyword(['test'], 'SOLD');
 
-      expect(MockEbayApiConstructor).toHaveBeenCalledTimes(1); // Expect constructor to be called
-      expect(mockEbayApiInstance.finding.findCompletedItems).toHaveBeenCalledTimes(1);
-      expect(mockEbayApiInstance.finding.findCompletedItems).toHaveBeenCalledWith(expect.any(Object));
-      expect(mockEbayApiInstance.buy.browse.search).not.toHaveBeenCalled();
+      expect(mockSetCredentials).not.toHaveBeenCalled();
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledTimes(1);
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test' }), expect.any(Object));
+      expect(mockBrowseSearch).not.toHaveBeenCalled();
+      expect(result).toEqual([[{ itemId: 'N/A', title: 'Sold Item', price: { value: '0', currency: 'N/A' } }]]);
     });
 
-    it('should call searchCompletedItems for ENDED config', async () => {
-      // Mock the specific API call that searchCompletedItems makes
-      mockEbayApiInstance.finding.findCompletedItems.mockResolvedValue({ searchResult: { item: [{ title: 'Ended Item' }] } });
+    it('should call searchCompletedItems for ENDED config with a single keyword', async () => {
+      mockFindingFindCompletedItems.mockResolvedValue({ searchResult: { item: [{ title: 'Ended Item' }] } });
 
-      await searchItemsByKeyword('test', 'ENDED');
+      const result = await searchItemsByKeyword(['test'], 'ENDED');
 
-      expect(MockEbayApiConstructor).toHaveBeenCalledTimes(1); // Expect constructor to be called
-      expect(mockEbayApiInstance.finding.findCompletedItems).toHaveBeenCalledTimes(1);
-      expect(mockEbayApiInstance.finding.findCompletedItems).toHaveBeenCalledWith(expect.any(Object));
-      expect(mockEbayApiInstance.buy.browse.search).not.toHaveBeenCalled();
+      expect(mockSetCredentials).not.toHaveBeenCalled();
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledTimes(1);
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test' }), expect.any(Object));
+      expect(mockBrowseSearch).not.toHaveBeenCalled();
+      expect(result).toEqual([[{ itemId: 'N/A', title: 'Ended Item', price: { value: '0', currency: 'N/A' } }]]);
+    });
+
+    it('should handle multiple keywords for ACTIVE config in parallel', async () => {
+      mockBrowseSearch
+        .mockResolvedValueOnce({ itemSummaries: [{ title: 'Active Item 1' }] })
+        .mockResolvedValueOnce({ itemSummaries: [{ title: 'Active Item 2' }] });
+
+      const result = await searchItemsByKeyword(['test1', 'test2'], 'ACTIVE');
+
+      expect(mockSetCredentials).toHaveBeenCalledTimes(2); // set per keyword in current implementation
+      expect(mockBrowseSearch).toHaveBeenCalledTimes(2);
+      expect(mockBrowseSearch).toHaveBeenCalledWith(expect.objectContaining({ q: 'test1' }));
+      expect(mockBrowseSearch).toHaveBeenCalledWith(expect.objectContaining({ q: 'test2' }));
+      expect(result).toEqual([
+        [{ itemId: 'N/A', title: 'Active Item 1', price: { value: '0', currency: 'N/A' } }],
+        [{ itemId: 'N/A', title: 'Active Item 2', price: { value: '0', currency: 'N/A' } }],
+      ]);
+    });
+
+    it('should handle multiple keywords for SOLD config in parallel', async () => {
+      mockFindingFindCompletedItems
+        .mockResolvedValueOnce({ searchResult: { item: [{ title: 'Sold Item 1' }] } })
+        .mockResolvedValueOnce({ searchResult: { item: [{ title: 'Sold Item 2' }] } });
+
+      const result = await searchItemsByKeyword(['test1', 'test2'], 'SOLD');
+
+      expect(mockSetCredentials).not.toHaveBeenCalled();
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledTimes(2);
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test1' }), expect.any(Object));
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test2' }), expect.any(Object));
+      expect(result).toEqual([
+        [{ itemId: 'N/A', title: 'Sold Item 1', price: { value: '0', currency: 'N/A' } }],
+        [{ itemId: 'N/A', title: 'Sold Item 2', price: { value: '0', currency: 'N/A' } }],
+      ]);
+    });
+
+    it('should return empty arrays for keywords that result in an error in searchActiveItems', async () => {
+      mockBrowseSearch
+        .mockResolvedValueOnce({ itemSummaries: [{ title: 'Active Item 1' }] })
+        .mockRejectedValueOnce(new Error('API Error for test2'));
+
+      const result = await searchItemsByKeyword(['test1', 'test2'], 'ACTIVE');
+
+      expect(mockBrowseSearch).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([
+        [{ itemId: 'N/A', title: 'Active Item 1', price: { value: '0', currency: 'N/A' } }],
+        [],
+      ]);
+    });
+
+    it('should return empty arrays for keywords that result in an error in searchCompletedItems', async () => {
+      mockFindingFindCompletedItems
+        .mockResolvedValueOnce({ searchResult: { item: [{ title: 'Sold Item 1' }] } })
+        .mockRejectedValueOnce(new Error('API Error for test2'));
+
+      const result = await searchItemsByKeyword(['test1', 'test2'], 'SOLD');
+
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([
+        [{ itemId: 'N/A', title: 'Sold Item 1', price: { value: '0', currency: 'N/A' } }],
+        [],
+      ]);
+    });
+
+    it('should return empty arrays for all keywords if Browse API fails', async () => {
+      mockBrowseSearch.mockRejectedValue(new Error('Token or Browse API failure'));
+
+      const result = await searchItemsByKeyword(['test1', 'test2'], 'ACTIVE');
+
+      expect(mockSetCredentials).toHaveBeenCalledTimes(2); // per keyword
+      expect(mockBrowseSearch).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([[], []]);
     });
   });
 });

@@ -20,7 +20,7 @@ export function getEbaySearchConfig(configKey: string): EbaySearchConfig {
     SOLD: (): FindingApiConfig => ({
       itemFilter: [
         { name: 'SoldItemsOnly', value: true },
-        { name: 'EndTimeFrom', value: getIsoDateMinusDays(30) },
+        { name: 'EndTimeFrom', value: getIsoDateMinusDays(90) },
       ],
       sortOrder: 'EndTimeSoonest',
     }),

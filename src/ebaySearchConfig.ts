@@ -5,31 +5,28 @@ export interface BrowseApiConfig {
   sort?: string;
 }
 
-export interface FindingApiConfig {
-  itemFilter: { name: string; value: string | boolean }[];
-  sortOrder?: string;
+export interface InsightsApiConfig {
+  marketplaceId: string; // e.g., EBAY_US, EBAY_MOTORS_US
+  periodDays: number; // how many days back to include
+  sort?: string; // e.g., 'date_sold:desc'
 }
 
-export type EbaySearchConfig = BrowseApiConfig | FindingApiConfig;
+export type EbaySearchConfig = BrowseApiConfig | InsightsApiConfig;
 
 export function getEbaySearchConfig(configKey: string): EbaySearchConfig {
   const configs: { [key: string]: () => EbaySearchConfig } = {
     ACTIVE: (): BrowseApiConfig => ({
       filter: 'buyingOptions:{FIXED_PRICE}',
     }),
-    SOLD: (): FindingApiConfig => ({
-      itemFilter: [
-        { name: 'SoldItemsOnly', value: true },
-        { name: 'EndTimeFrom', value: getIsoDateMinusDays(90) },
-      ],
-      sortOrder: 'EndTimeSoonest',
+    SOLD: (): InsightsApiConfig => ({
+      marketplaceId: process.env.DEFAULT_MARKETPLACE_ID || 'EBAY_US',
+      periodDays: 90,
+      sort: 'date_sold:desc',
     }),
-    ENDED: (): FindingApiConfig => ({
-      itemFilter: [
-        { name: 'SoldItemsOnly', value: false },
-        { name: 'EndTimeFrom', value: getIsoDateMinusDays(20) },
-      ],
-      sortOrder: 'EndTimeSoonest',
+    ENDED: (): InsightsApiConfig => ({
+      marketplaceId: process.env.DEFAULT_MARKETPLACE_ID || 'EBAY_US',
+      periodDays: 30,
+      sort: 'date_sold:desc',
     }),
   };
 

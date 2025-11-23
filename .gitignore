@@ -1,42 +1,93 @@
-# Dependencies
+# ===========================
+# eBay Bot - Clean Architecture v2.0
+# ===========================
+
+# === Dependencies ===
 /node_modules
+/.pnp
+.pnp.js
 
-# Build output
+# === Build Output ===
 /dist
+/build
+*.tsbuildinfo
 
-# Environment variables
+# === Environment Variables ===
 .env
-.env.*
-!\.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
 
-# Logs
+# === Logs ===
+logs/*.log
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Database files
+# === Database Files ===
 *.sqlite
+*.sqlite3
+*.db
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 
-# IDE configuration
-/.idea
+# === IDE & Editors ===
+.idea/
 .vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
 
-# Test reports and cache
+# === Testing ===
 /coverage
-.jest-cache
+/.nyc_output
+.jest-cache/
+/test-results/
+/playwright-report/
 
-# OS-generated files
+# === OS Generated Files ===
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
+# === Temporary Files ===
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*~
 
-# START Ruler Generated Files
-/.junie/guidelines.md
-/.junie/guidelines.md.bak
-/AGENTS.md
-/AGENTS.md.bak
-/CLAUDE.md
-/CLAUDE.md.bak
-# END Ruler Generated Files
+# === AI Assistant Files ===
+.ruler/
+.junie/
+.gemini/
+.genkit/
+.aiassistant/
+
+# Don't ignore AI config files in root
+!AGENTS.md
+!CLAUDE.md
+
+# === Optional: Backup & Report Files ===
+# Uncomment if you want to ignore temporary documentation
+ *.md.bak
+ OLD_*.md
+ FILES_TO_DELETE.md
+ CLEANUP_*.md

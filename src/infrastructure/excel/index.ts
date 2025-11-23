@@ -1,0 +1,2 @@
+export { ExcelReportGenerator } from './ExcelReportGenerator';
+

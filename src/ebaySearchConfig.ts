@@ -1,39 +1,32 @@
-import { getIsoDateMinusDays } from './utils';
-
 export interface BrowseApiConfig {
   filter: string;
   sort?: string;
 }
 
-export interface InsightsApiConfig {
-  marketplaceId: string; // e.g., EBAY_US, EBAY_MOTORS_US
-  periodDays: number; // how many days back to include
-  sort?: string; // e.g., 'date_sold:desc'
+export interface FindingApiConfig {
+  itemFilter: { name: string; value: string | string[] }[];
+  sortOrder?: string;
 }
 
-export type EbaySearchConfig = BrowseApiConfig | InsightsApiConfig;
+export type EbaySearchConfig = BrowseApiConfig | FindingApiConfig;
 
 export function getEbaySearchConfig(configKey: string): EbaySearchConfig {
   const configs: { [key: string]: () => EbaySearchConfig } = {
     ACTIVE: (): BrowseApiConfig => ({
       filter: 'buyingOptions:{FIXED_PRICE}',
+      sort: undefined,
     }),
-    SOLD: (): InsightsApiConfig => ({
-      marketplaceId: process.env.DEFAULT_MARKETPLACE_ID || 'EBAY_US',
-      periodDays: 90,
-      sort: 'date_sold:desc',
+    SOLD: (): FindingApiConfig => ({
+      itemFilter: [{ name: 'SoldItemsOnly', value: 'true' }],
+      sortOrder: 'EndTimeSoonest',
     }),
-    ENDED: (): InsightsApiConfig => ({
-      marketplaceId: process.env.DEFAULT_MARKETPLACE_ID || 'EBAY_US',
-      periodDays: 30,
-      sort: 'date_sold:desc',
+    ENDED: (): FindingApiConfig => ({
+      itemFilter: [{ name: 'ListingType', value: 'FixedPrice' }],
+      sortOrder: 'EndTimeSoonest',
     }),
   };
 
-  const configGenerator = configs[configKey];
-  if (!configGenerator) {
-    throw new Error(`Invalid eBay search config key: ${configKey}`);
-  }
-
-  return configGenerator();
+  const gen = configs[configKey];
+  if (!gen) throw new Error(`Invalid eBay search config key: ${configKey}`);
+  return gen();
 }

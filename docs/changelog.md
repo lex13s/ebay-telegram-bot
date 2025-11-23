@@ -78,3 +78,11 @@
 - Исправлена `ReferenceError` в `__tests__/ebayApi.test.ts`, вызванная порядком объявления моков Jest.
 - Исправлен некорректный мок `getEbayAppToken` в `__tests__/ebayApi.test.ts` путем прямого мокирования `ebay-oauth-nodejs-client`.
 - Исправлена проблема с порядком моков и загрузки модуля в `__tests__/ebayApi.test.ts` с использованием `jest.doMock` и `require` для тестируемого модуля.
+- Исправлена `TypeError` в `__tests__/ebayApi.test.ts` путем корректного мокирования конструктора `EbayAuthToken`.
+- Пересмотрена стратегия мокирования в `__tests__/ebayApi.test.ts` для окончательного исправления `ReferenceError` и `TypeError` с использованием `jest.resetModules()`.
+- Исправлена ошибка `TypeError` в `__tests__/ebayApi.test.ts` путем корректного мокирования конструктора `EbayAuthToken` и использования `jest.resetModules()`.
+- Исправлена ошибка `expect(jest.fn()).toHaveBeenCalledTimes(expected)` в `__tests__/ebayApi.test.ts` путем использования `jest.resetModules()` для обеспечения правильной загрузки моков.
+- Исправлена ошибка `expect(jest.fn()).toHaveBeenCalledTimes(expected)` в `__tests__/ebayApi.test.ts` путем использования `jest.resetModules()` для обеспечения правильной загрузки моков.
+- Исправлена гонка состояний в `getEbayAppToken` путем кэширования промиса запроса токена.
+- Исправлена гонка состояний для `setCredentials` путем его переноса внутрь `getEbayAppToken`.
+- Все тесты в `__tests__/ebayApi.test.ts` успешно пройдены.

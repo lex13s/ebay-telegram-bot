@@ -1,9 +1,10 @@
 import { EbayItem } from '../src/types/ebay-api';
 
-// Mock the external dependency 'ebay-api'
+// Define mocks before any jest.doMock calls
 const mockBrowseSearch = jest.fn();
 const mockFindingFindCompletedItems = jest.fn();
 const mockSetCredentials = jest.fn();
+const mockGetApplicationToken = jest.fn();
 
 const mockEbayApiInstance = {
   buy: {
@@ -19,20 +20,22 @@ const mockEbayApiInstance = {
   },
 };
 
-// Ensure mocks are set up before the module under test is required
-jest.doMock('ebay-api', () => ({
-  __esModule: true,
-  default: jest.fn(() => mockEbayApiInstance),
+const mockEbayApiConstructor = jest.fn(() => mockEbayApiInstance);
+const mockEbayAuthTokenConstructor = jest.fn(() => ({
+  getApplicationToken: mockGetApplicationToken,
 }));
 
-// Mock the EbayAuthToken constructor and its getApplicationToken method
-jest.doMock('ebay-oauth-nodejs-client', () => {
-  return jest.fn().mockImplementation(() => ({
-    getApplicationToken: jest.fn(() => Promise.resolve(JSON.stringify({ access_token: 'mockAppToken', expires_in: 3600 }))),
-  }));
-});
+// Use jest.doMock to ensure mocks are set up before the module under test is required
+jest.doMock('ebay-api', () => ({
+  __esModule: true,
+  default: mockEbayApiConstructor,
+}));
 
-// Mock the config module as it's used by ebayApi.ts (if required later)
+jest.doMock('ebay-oauth-nodejs-client', () => ({
+  __esModule: true,
+  default: mockEbayAuthTokenConstructor,
+}));
+
 jest.doMock('../src/config', () => ({
   config: {
     ebayAppId: 'mockAppId',
@@ -43,16 +46,27 @@ jest.doMock('../src/config', () => ({
   },
 }));
 
-// Dynamically import the module under test AFTER all mocks are set up
-const { searchItemsByKeyword } = require('../src/ebayApi');
-
 describe('ebayApi.ts', () => {
+  let searchItemsByKeyword: (keywords: string[], configKey: string) => Promise<EbayItem[][]>;
+
   beforeEach(() => {
-    // Clear mocks before each test
+    // Reset modules to ensure mocks are applied to a fresh instance of the module
+    jest.resetModules();
+    
+    // Dynamically import the module under test AFTER all mocks are set up
+    const ebayApiModule = require('../src/ebayApi');
+    searchItemsByKeyword = ebayApiModule.searchItemsByKeyword;
+
+    // Clear all mocks before each test
     mockBrowseSearch.mockClear();
     mockFindingFindCompletedItems.mockClear();
     mockSetCredentials.mockClear();
-    (require('ebay-api').default as jest.Mock).mockClear();
+    mockEbayApiConstructor.mockClear();
+    mockEbayAuthTokenConstructor.mockClear();
+    mockGetApplicationToken.mockClear();
+
+    // Reset mock implementations to default successful state
+    mockGetApplicationToken.mockResolvedValue(JSON.stringify({ access_token: 'mockAppToken', expires_in: 3600 }));
   });
 
   describe('searchItemsByKeyword', () => {
@@ -61,6 +75,9 @@ describe('ebayApi.ts', () => {
 
       const result = await searchItemsByKeyword(['test'], 'ACTIVE');
 
+      expect(mockEbayApiConstructor).toHaveBeenCalledTimes(1);
+      expect(mockEbayAuthTokenConstructor).toHaveBeenCalledTimes(1);
+      expect(mockGetApplicationToken).toHaveBeenCalledTimes(1);
       expect(mockSetCredentials).toHaveBeenCalledTimes(1);
       expect(mockSetCredentials).toHaveBeenCalledWith('mockAppToken');
       expect(mockBrowseSearch).toHaveBeenCalledTimes(1);
@@ -74,9 +91,12 @@ describe('ebayApi.ts', () => {
 
       const result = await searchItemsByKeyword(['test'], 'SOLD');
 
+      expect(mockEbayApiConstructor).toHaveBeenCalledTimes(1);
+      expect(mockEbayAuthTokenConstructor).not.toHaveBeenCalled();
+      expect(mockGetApplicationToken).not.toHaveBeenCalled();
       expect(mockSetCredentials).not.toHaveBeenCalled();
       expect(mockFindingFindCompletedItems).toHaveBeenCalledTimes(1);
-      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test' }), expect.any(Object));
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test' }));
       expect(mockBrowseSearch).not.toHaveBeenCalled();
       expect(result).toEqual([[{ itemId: 'N/A', title: 'Sold Item', price: { value: '0', currency: 'N/A' } }]]);
     });
@@ -86,9 +106,12 @@ describe('ebayApi.ts', () => {
 
       const result = await searchItemsByKeyword(['test'], 'ENDED');
 
+      expect(mockEbayApiConstructor).toHaveBeenCalledTimes(1);
+      expect(mockEbayAuthTokenConstructor).not.toHaveBeenCalled();
+      expect(mockGetApplicationToken).not.toHaveBeenCalled();
       expect(mockSetCredentials).not.toHaveBeenCalled();
       expect(mockFindingFindCompletedItems).toHaveBeenCalledTimes(1);
-      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test' }), expect.any(Object));
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test' }));
       expect(mockBrowseSearch).not.toHaveBeenCalled();
       expect(result).toEqual([[{ itemId: 'N/A', title: 'Ended Item', price: { value: '0', currency: 'N/A' } }]]);
     });
@@ -100,7 +123,10 @@ describe('ebayApi.ts', () => {
 
       const result = await searchItemsByKeyword(['test1', 'test2'], 'ACTIVE');
 
-      expect(mockSetCredentials).toHaveBeenCalledTimes(2); // set per keyword in current implementation
+      expect(mockEbayApiConstructor).toHaveBeenCalledTimes(1);
+      expect(mockEbayAuthTokenConstructor).toHaveBeenCalledTimes(1);
+      expect(mockGetApplicationToken).toHaveBeenCalledTimes(1);
+      expect(mockSetCredentials).toHaveBeenCalledTimes(1);
       expect(mockBrowseSearch).toHaveBeenCalledTimes(2);
       expect(mockBrowseSearch).toHaveBeenCalledWith(expect.objectContaining({ q: 'test1' }));
       expect(mockBrowseSearch).toHaveBeenCalledWith(expect.objectContaining({ q: 'test2' }));
@@ -117,10 +143,13 @@ describe('ebayApi.ts', () => {
 
       const result = await searchItemsByKeyword(['test1', 'test2'], 'SOLD');
 
+      expect(mockEbayApiConstructor).toHaveBeenCalledTimes(1);
+      expect(mockEbayAuthTokenConstructor).not.toHaveBeenCalled();
+      expect(mockGetApplicationToken).not.toHaveBeenCalled();
       expect(mockSetCredentials).not.toHaveBeenCalled();
       expect(mockFindingFindCompletedItems).toHaveBeenCalledTimes(2);
-      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test1' }), expect.any(Object));
-      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test2' }), expect.any(Object));
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test1' }));
+      expect(mockFindingFindCompletedItems).toHaveBeenCalledWith(expect.objectContaining({ keywords: 'test2' }));
       expect(result).toEqual([
         [{ itemId: 'N/A', title: 'Sold Item 1', price: { value: '0', currency: 'N/A' } }],
         [{ itemId: 'N/A', title: 'Sold Item 2', price: { value: '0', currency: 'N/A' } }],
@@ -155,13 +184,15 @@ describe('ebayApi.ts', () => {
       ]);
     });
 
-    it('should return empty arrays for all keywords if Browse API fails', async () => {
-      mockBrowseSearch.mockRejectedValue(new Error('Token or Browse API failure'));
+    it('should return empty arrays for all keywords if getEbayAppToken fails', async () => {
+      mockGetApplicationToken.mockRejectedValue(new Error('Token fetch failed'));
 
       const result = await searchItemsByKeyword(['test1', 'test2'], 'ACTIVE');
 
-      expect(mockSetCredentials).toHaveBeenCalledTimes(2); // per keyword
-      expect(mockBrowseSearch).toHaveBeenCalledTimes(2);
+      expect(mockEbayAuthTokenConstructor).toHaveBeenCalledTimes(1);
+      expect(mockGetApplicationToken).toHaveBeenCalledTimes(1);
+      expect(mockSetCredentials).not.toHaveBeenCalled();
+      expect(mockBrowseSearch).not.toHaveBeenCalled();
       expect(result).toEqual([[], []]);
     });
   });

@@ -1,92 +1,91 @@
 # eBay API Integration (Buy APIs)
 
-Обновлено: 2025-11-01
+Updated: 2025-11-01
 
-Цель: единая реализация поиска активных и проданных/завершённых товаров без Finding API (Finding деактивирован).
+Goal: a unified implementation for searching active and sold/ended items without the Finding API (Finding is deprecated).
 
-Ссылки:
+Links:
 - Deprecation status: https://developer.ebay.com/develop/get-started/api-deprecation-status
 - Browse API overview: https://developer.ebay.com/api-docs/buy/browse/static/overview.html
 - Marketplace Insights API: https://developer.ebay.com/api-docs/buy/marketplace-insights/overview.html
 
-## Архитектура
+## Architecture
 
 - ACTIVE → Browse API: GET /buy/browse/v1/item_summary/search
-  - Параметры: q, limit, filter (например, `buyingOptions:{FIXED_PRICE}`), sort (опционально)
-  - Заголовки: Authorization: Bearer <token>
+  - Parameters: q, limit, filter (e.g., `buyingOptions:{FIXED_PRICE}`), sort (optional)
+  - Headers: Authorization: Bearer <token>
 - SOLD/ENDED → Marketplace Insights API: GET /buy/marketplace_insights/v1_beta/item_sales/search
-  - Параметры: q, limit, sort (например, `date_sold:desc`), фильтры по времени при необходимости
-  - Заголовки: Authorization: Bearer <token>, X-EBAY-C-MARKETPLACE-ID: <marketplaceId>
+  - Parameters: q, limit, sort (e.g., `date_sold:desc`), time filters if necessary
+  - Headers: Authorization: Bearer <token>, X-EBAY-C-MARKETPLACE-ID: <marketplaceId>
 
-Единая точка входа: `searchItemsByKeyword(keywords: string[], mode: 'ACTIVE' | 'SOLD' | 'ENDED')`.
+Single entry point: `searchItemsByKeyword(keywords: string[], mode: 'ACTIVE' | 'SOLD' | 'ENDED')`.
 
-## OAuth и токены
+## OAuth and Tokens
 
-- Для Browse используем app token со скоупами по умолчанию.
-- Для Insights требуется scope: `https://api.ebay.com/oauth/api_scope/buy.marketplace.insights`.
-- Токены кэшируются в `appTokenCache` по ключам `browse` и `insights` с учётом `expires_in` и `TOKEN_EXPIRATION_BUFFER`.
-- В режиме ACTIVE токен запрашивается один раз на батч и один раз устанавливается в `ebayApi.OAuth2.setCredentials`.
+- For Browse, we use an app token with default scopes.
+- For Insights, the scope `https://api.ebay.com/oauth/api_scope/buy.marketplace.insights` is required.
+- Tokens are cached in `appTokenCache` under the keys `browse` and `insights`, considering `expires_in` and `TOKEN_EXPIRATION_BUFFER`.
+- In ACTIVE mode, the token is requested once per batch and set once in `ebayApi.OAuth2.setCredentials`.
 
 ## Marketplace ID
 
-- Конфиг по умолчанию: `DEFAULT_MARKETPLACE_ID` (например, `EBAY_US`).
-- Эвристика для автозапчастей: если keyword похож на партномер вида `AAA-111-BB` → `EBAY_MOTORS_US` (если не задан другой marketplace явно).
-- Логика выбора:
-  - Если задан не-US marketplace (например, `EBAY_GB`) → используем его без переопределения.
-  - Если marketplace отсутствует или `EBAY_US` → для автопартов `EBAY_MOTORS_US`, иначе `EBAY_US`.
+- Default config: `DEFAULT_MARKETPLACE_ID` (e.g., `EBAY_US`).
+- Heuristics for auto parts: if the keyword looks like a part number of the form `AAA-111-BB` → `EBAY_MOTORS_US` (unless another marketplace is explicitly set).
+- Selection logic:
+  - If a non-US marketplace is set (e.g., `EBAY_GB`) → use it without overriding.
+  - If the marketplace is missing or `EBAY_US` → for auto parts, `EBAY_MOTORS_US`, otherwise `EBAY_US`.
 
-## Конфигурация (`ebaySearchConfig.ts`)
+## Configuration (`ebaySearchConfig.ts`)
 
 - ACTIVE (Browse):
   - filter: `buyingOptions:{FIXED_PRICE}`
-  - sort: опционально
+  - sort: optional
 - SOLD / ENDED (Insights):
-  - marketplaceId: из `DEFAULT_MARKETPLACE_ID` или эвристики
-  - periodDays: число дней для анализа (SOLD = 90, ENDED = 30 по умолчанию)
+  - marketplaceId: from `DEFAULT_MARKETPLACE_ID` or heuristics
+  - periodDays: number of days for analysis (SOLD = 90, ENDED = 30 by default)
   - sort: `date_sold:desc`
 
-Примечание: Buy APIs не отдают список «unsold» публично. Поэтому ENDED трактуется как «проданные в период» (аналогично SOLD, но можно варьировать период и сортировку).
+Note: Buy APIs do not publicly provide a list of "unsold" items. Therefore, ENDED is treated as "sold within a period" (similar to SOLD, but the period and sorting can be varied).
 
-## Обработка ошибок и лимитов
+## Error and Limit Handling
 
-- Rate limit (429) в Insights → выбрасываем `EBAY_RATE_LIMIT`, чтобы наверх (бот) не списывал средства и показывал корректное сообщение.
-- Любые другие не-ОК ответы → логируем предупреждение и возвращаем пустой результат для ключевого слова.
-- Browse ошибки → логируем и возвращаем пустой массив для конкретного ключевого слова.
+- Rate limit (429) in Insights → throw `EBAY_RATE_LIMIT` so that the higher level (the bot) does not deduct funds and shows the correct message.
+- Any other non-OK responses → log a warning and return an empty result for the keyword.
+- Browse errors → log and return an empty array for the specific keyword.
 
-## Маппинг результата
+## Result Mapping
 
 - Browse: itemSummaries → `{ itemId, title, price: { value, currency } }`.
-- Insights: itemSales/sales → используем `lastSoldPrice` (или `price/soldPrice`) и `listingId/itemId/transactionId`.
+- Insights: itemSales/sales → use `lastSoldPrice` (or `price/soldPrice`) and `listingId/itemId/transactionId`.
 
-## Тестирование
+## Testing
 
-- Юнит-тесты покрывают:
-  - ACTIVE: один setCredentials на батч, параллельные запросы, обработку ошибок.
-  - SOLD/ENDED: вызов Insights (fetch), корректные заголовки, маппинг, rate limit (429), non-OK ответы.
-  - Выбор marketplaceId по эвристике и `DEFAULT_MARKETPLACE_ID`.
+- Unit tests cover:
+  - ACTIVE: one setCredentials per batch, parallel requests, error handling.
+  - SOLD/ENDED: Insights call (fetch), correct headers, mapping, rate limit (429), non-OK responses.
+  - Selection of marketplaceId by heuristics and `DEFAULT_MARKETPLACE_ID`.
 
-## Быстрый старт
+## Quick Start
 
-Переменные окружения:
-- `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` — креды приложения.
-- `DEFAULT_MARKETPLACE_ID` — по умолчанию `EBAY_US`.
-- `TOKEN_EXPIRATION_BUFFER` — буфер истечения токена (мс), опционально.
+Environment variables:
+- `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` — application credentials.
+- `DEFAULT_MARKETPLACE_ID` — defaults to `EBAY_US`.
+- `TOKEN_EXPIRATION_BUFFER` — token expiration buffer (ms), optional.
 
-Команды:
+Commands:
 ```bash
 npm run build
 npm start
 npm test
 ```
 
-## Известные ограничения
+## Known Limitations
 
-- Marketplace Insights требует соответствующего доступа в eBay Dev Program.
-- Доступ к «unsold completed listings» через Buy APIs ограничен — ENDED работает как продажи за период.
+- Marketplace Insights requires corresponding access in the eBay Dev Program.
+- Access to "unsold completed listings" via Buy APIs is limited — ENDED works as sales over a period.
 
-## История изменений (кратко)
+## Change History (brief)
 
-- Перевод SOLD/ENDED на Marketplace Insights вместо Finding API (Finding снят с поддержки).
-- Оптимизация токенов (setCredentials один раз на батч для ACTIVE).
-- Унификация маппинга и улучшение логирования.
-
+- Migration of SOLD/ENDED to Marketplace Insights instead of the Finding API (Finding is deprecated).
+- Token optimization (setCredentials once per batch for ACTIVE).
+- Unification of mapping and improvement of logging.

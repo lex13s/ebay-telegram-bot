@@ -30,3 +30,13 @@ yarn-error.log*
 # OS-generated files
 .DS_Store
 Thumbs.db
+
+
+# START Ruler Generated Files
+/.junie/guidelines.md
+/.junie/guidelines.md.bak
+/AGENTS.md
+/AGENTS.md.bak
+/CLAUDE.md
+/CLAUDE.md.bak
+# END Ruler Generated Files

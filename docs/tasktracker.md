@@ -1,37 +1,38 @@
-## Задача: Рефакторинг и исправление поиска eBay
-- **Статус**: Завершена
-- **Описание**: Полностью переработана и исправлена логика взаимодействия с API eBay, добавлена новая функциональность и обеспечена стабильность работы.
-- **Шаги выполнения**:
-  - [x] Реализовать для пользователей возможность выбора типа поиска (`ACTIVE`, `SOLD`, `ENDED`).
-  - [x] Разделить логику вызовов на `Browse API` (для `ACTIVE`) и `Finding API` (для `SOLD`/`ENDED`).
-  - [x] Исправить механизм аутентификации для каждого типа API, устранив ошибки `invalid_client` и `RateLimiter`.
-  - [x] Ввести последовательную обработку запросов с задержкой для соблюдения лимитов API.
-  - [x] Создать единый маппер для унификации структуры данных от разных API.
-  - [x] Устранить все ошибки компиляции TypeScript и потенциальные ошибки времени выполнения.
-  - [x] Добавить модульные тесты для проверки основной логики взаимодействия с API.
-- **Зависимости**: Нет
-- ## Задача: Аудит и улучшение обработки ошибок в асинхронных функциях
-- **Статус**: Завершена
-- **Описание**: Проверка всех асинхронных функций на предмет обработки ошибок с использованием `try-catch-finally` блоков и улучшение логирования/обработки ошибок для повышения стабильности приложения.
-- **Шаги выполнения**:
-  - [x] Документирование задачи.
-  - [x] Аудит `src/ebayApi.ts`.
-  - [x] Аудит `src/ebay.ts`.
-  - [x] Аудит `src/bot.ts`.
-  - [x] Внедрение/улучшение `try-catch-finally` и логирования ошибок.
-- **Зависимости**: Отсутствуют
+## Task: Refactor and Fix eBay Search
+- **Status**: Completed
+- **Description**: Completely redesigned and fixed the logic for interacting with the eBay API, added new functionality, and ensured stable operation.
+- **Execution Steps**:
+  - [x] Implement the ability for users to choose the search type (`ACTIVE`, `SOLD`, `ENDED`).
+  - [x] Separate the call logic into `Browse API` (for `ACTIVE`) and `Finding API` (for `SOLD`/`ENDED`).
+  - [x] Fix the authentication mechanism for each API type, eliminating `invalid_client` and `RateLimiter` errors.
+  - [x] Introduce sequential request processing with a delay to comply with API limits.
+  - [x] Create a single mapper to unify the data structure from different APIs.
+  - [x] Eliminate all TypeScript compilation errors and potential runtime errors.
+  - [x] Add unit tests to check the main logic of interaction with the API.
+- **Dependencies**: None
 
-## Задача: Исправление тестов после рефакторинга
-- **Статус**: Завершена
-- **Описание**: Адаптация существующих тестов к изменениям, внесенным в основной код (изменение сигнатур функций, логики параллельной обработки, улучшенная обработка ошибок).
-- **Шаги выполнения**:
-  - [x] Идентификация затронутых тестовых файлов.
-  - [x] Анализ изменений в тестовых файлах.
-  - [x] Внесение исправлений в тестовые файлы: `__tests__/ebayApi.test.ts`.
-  - [x] Внесение исправлений в тестовые файлы: `__tests__/ebay.test.ts`.
-  - [x] Внесение исправлений в тестовые файлы: `__tests__/bot.test.ts`.
-  - [x] Внесение исправлений в тестовые файлы: `__tests__/ebay.ispec.ts`.
-  - [x] Внесение исправлений в тестовые файлы: `__tests__/excel.test.ts`.
-  - [x] Внесение исправлений в тестовые файлы: `__tests__/test-api.ts`.
-  - [x] Аудит `__tests__/utils.test.ts` (изменения не требуются).
-- **Зависимости**: Отсутствуют
+## Task: Audit and Improve Error Handling in Asynchronous Functions
+- **Status**: Completed
+- **Description**: Review all asynchronous functions for error handling using `try-catch-finally` blocks and improve error logging/handling to increase application stability.
+- **Execution Steps**:
+  - [x] Document the task.
+  - [x] Audit `src/ebayApi.ts`.
+  - [x] Audit `src/ebay.ts`.
+  - [x] Audit `src/bot.ts`.
+  - [x] Implement/improve `try-catch-finally` and error logging.
+- **Dependencies**: None
+
+## Task: Fix Tests After Refactoring
+- **Status**: Completed
+- **Description**: Adapt existing tests to changes made in the main code (changes in function signatures, parallel processing logic, improved error handling).
+- **Execution Steps**:
+  - [x] Identify affected test files.
+  - [x] Analyze changes in test files.
+  - [x] Make corrections to test files: `__tests__/ebayApi.test.ts`.
+  - [x] Make corrections to test files: `__tests__/ebay.test.ts`.
+  - [x] Make corrections to test files: `__tests__/bot.test.ts`.
+  - [x] Make corrections to test files: `__tests__/ebay.ispec.ts`.
+  - [x] Make corrections to test files: `__tests__/excel.test.ts`.
+  - [x] Make corrections to test files: `__tests__/test-api.ts`.
+  - [x] Audit `__tests__/utils.test.ts` (no changes required).
+- **Dependencies**: None

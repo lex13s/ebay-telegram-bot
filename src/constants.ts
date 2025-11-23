@@ -23,55 +23,55 @@ export const EBAY_MARKETPLACE_ID = 'EBAY_US'
 /** A collection of user-facing messages used by the bot. */
 export const BOT_MESSAGES = {
   /** The initial welcome message sent on /start. */
-  start: (firstName: string) => `👋 Здравствуйте, ${firstName}!\n\nОтправьте мне один или несколько парт-номеров для поиска.`,
+  start: (firstName: string) => `👋 Hello, ${firstName}!\n\nPlease send me one or more part numbers to search.`,
   /** The main menu text. */
-  mainMenu: (balance: string) => `Ваш текущий баланс: $${balance}.\n\nВыберите действие:`,
+  mainMenu: (balance: string) => `Your current balance: $${balance}.\n\nPlease select an action:`,
   /** Message sent when the bot starts processing a request. */
-  processing: '⚙️ Начинаю обработку вашего запроса...',
+  processing: '⚙️ Processing your request...',
   /** Message sent when the eBay search is complete and Excel generation begins. */
-  searchComplete: '✅ Поиск завершен. Создаю Excel-отчет...',
+  searchComplete: '✅ Search complete. Creating Excel report...',
   /** Error message when the user sends a message with no valid part numbers. */
-  noPartNumbers: 'Пожалуйста, введите хотя бы один партномер.',
+  noPartNumbers: 'Please enter at least one part number.',
   /** Generic error message for any unhandled exceptions during processing. */
-  error: 'Произошла непредвиденная ошибка. Пожалуйста, попробуйте еще раз.',
+  error: 'An unexpected error occurred. Please try again.',
   /** Message when no items are found for a regular user, and the cost is refunded. */
   noItemsFoundAndRefund: (balance: string) =>
-    `❌ По вашему запросу ничего не найдено. Средства возвращены на ваш баланс. Текущий баланс: $${balance}`,
+    `❌ Nothing found for your request. Funds have been returned to your balance. Current balance: $${balance}`,
   /** A simple message when no items are found (e.g., for an admin). */
-  noItemsFound: '❌ По вашему запросу ничего не найдено.',
+  noItemsFound: '❌ Nothing found for your request.',
   /** Message when a refund is issued due to an internal error. */
   refundOnEror: (balance: string) =>
-    `⚠️ Произошла ошибка при обработке вашего запроса. Средства были возвращены на ваш баланс. Текущий баланс: $${balance}`,
+    `⚠️ An error occurred while processing your request. Funds have been returned to your balance. Current balance: $${balance}`,
   /** Message indicating how many part numbers are being searched for. */
-  searching: (count: number) => `Ищу информацию по ${count} номер(у/ам)...`,
+  searching: (count: number) => `Searching for information on ${count} part number(s)...`,
 
   // Payment and Balance Messages
-  insufficientFunds: '🚫 На вашем балансе недостаточно средств для выполнения запроса.',
+  insufficientFunds: '🚫 Insufficient funds in your balance to complete the request.',
   requestComplete: (cost: string, balance: string) =>
-    `✅ Запрос выполнен! С вашего баланса списано $${cost}. Остаток: $${balance}.`,
+    `✅ Request completed! $${cost} has been deducted from your balance. Remaining balance: $${balance}.`,
   /** Message for a successfully completed free request (e.g., for an admin). */
-  requestCompleteFree: '✅ Запрос выполнен!',
-  currentBalance: (balance: string) => `Ваш текущий баланс: $${balance}`,
+  requestCompleteFree: '✅ Request completed!',
+  currentBalance: (balance: string) => `Your current balance: $${balance}`,
   paymentSuccess: (amount: string, balance: string) =>
-    `✅ Оплата прошла успешно!\n\nВаш баланс пополнен на $${amount}.\nТекущий баланс: $${balance}.`,
+    `✅ Payment successful!\n\nYour balance has been topped up by $${amount}.\nCurrent balance: $${balance}.`,
 
   // Coupon Messages
-  enterCouponCode: 'Пожалуйста, введите ваш код купона:',
-  redeemCouponNotFound: '❌ Купон не найден или уже был использован.',
+  enterCouponCode: 'Please enter your coupon code:',
+  redeemCouponNotFound: '❌ Coupon not found or already used.',
   redeemCouponSuccess: (amount: string, balance: string) =>
-    `✅ Купон успешно активирован!\nВаш баланс пополнен на $${amount}.\nНовый баланс: $${balance}.`,
+    `✅ Coupon successfully activated!\nYour balance has been topped up by $${amount}.\nNew balance: $${balance}.`,
 
   // Admin Messages
-  adminOnly: '⛔️ Эта команда доступна только администратору.',
-  enterCouponValue: 'Введите сумму для купона в долларах (например, 10 или 5.50):',
-  generateCouponUsage: 'Использование: /generatecoupon <сумма_в_долларах>\nПример: /generatecoupon 10',
-  generateCouponSuccess: (code: string, amount: string) => `✅ Создан новый купон:\n\nКод: ${code}\nСумма: $${amount}`,
-  generateCouponError: '❌ Ошибка при создании купона.',
+  adminOnly: '⛔️ This command is available only to the administrator.',
+  enterCouponValue: 'Enter the coupon amount in dollars (e.g., 10 or 5.50):',
+  generateCouponUsage: 'Usage: /generatecoupon <amount_in_dollars>\nExample: /generatecoupon 10',
+  generateCouponSuccess: (code: string, amount: string) => `✅ New coupon created:\n\nCode: ${code}\nAmount: $${amount}`,
+  generateCouponError: '❌ Error creating coupon.',
 
   // Invoice Messages
-  invoiceTitle: 'Пополнение баланса',
-  invoiceDescription: (cost: string) => `Покупка кредитов для бота на сумму $${cost}`,
-  paymentsDisabled: 'К сожалению, функция оплаты временно отключена. Пожалуйста, попробуйте позже.',
+  invoiceTitle: 'Balance Top-up',
+  invoiceDescription: (cost: string) => `Purchase of bot credits for $${cost}`,
+  paymentsDisabled: 'Unfortunately, the payment function is temporarily disabled. Please try again later.',
 }
 
 /** The prefix for the generated Excel file name. */

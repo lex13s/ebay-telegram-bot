@@ -11,7 +11,7 @@ const testPartNumbers = ['90915-YZZE1', '1629995-00-',
 ;(async () => {
   try {
     // Call findItem with the config key, as the new logic requires it.
-    const results = await findItem(testPartNumbers, 'SOLD') // findItem теперь возвращает массив
+    const results = await findItem(testPartNumbers, 'SOLD') // findItem now returns an array
 
     if (results.length > 0) {
       results.forEach(res => {

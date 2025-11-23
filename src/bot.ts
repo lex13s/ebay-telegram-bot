@@ -21,7 +21,7 @@ async function handleApiError(error: any, queryId?: string, bot?: TelegramBot) {
     if (error instanceof Error && error.message.includes('message is not modified')) {
         // Ignore this specific error, as it's expected on repeated button clicks
         if (queryId && bot) {
-            await bot.answerCallbackQuery(queryId, { text: 'Настройки уже отображены.' });
+            await bot.answerCallbackQuery(queryId, { text: 'Settings are already displayed.' });
         }
     } else {
         // In a real application, you would log this to a proper logging service
@@ -91,8 +91,8 @@ export function initializeBot(): void {
       await bot.sendMessage(chatId, BOT_MESSAGES.insufficientFunds, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: '💳 Пополнить баланс', callback_data: 'topup' }],
-            [{ text: '🎁 Использовать купон', callback_data: 'redeem_prompt' }],
+            [{ text: '💳 Top up balance', callback_data: 'topup' }],
+            [{ text: '🎁 Use coupon', callback_data: 'redeem_prompt' }],
           ],
         },
       });
@@ -110,7 +110,7 @@ export function initializeBot(): void {
 
       await bot.sendMessage(chatId, (BOT_MESSAGES as any).searching(partNumbers.length));
 
-      // Вызываем findItem один раз с массивом partNumbers
+      // Call findItem once with the array of partNumbers
       const allResults = await findItem(partNumbers, user.search_config_key || 'SOLD');
 
       const rawResults = allResults.map(res => ({
@@ -186,12 +186,12 @@ export function initializeBot(): void {
                     chat_id: chatId,
                     message_id: query.message.message_id,
                 });
-                await bot.answerCallbackQuery(query.id, { text: 'Настройки обновлены!' });
+                await bot.answerCallbackQuery(query.id, { text: 'Settings updated!' });
             } catch (error) {
                 handleApiError(error, query.id, bot);
             }
         } else {
-             await bot.answerCallbackQuery(query.id, { text: 'Пользователь не найден.' });
+             await bot.answerCallbackQuery(query.id, { text: 'User not found.' });
         }
         return;
     }
@@ -249,7 +249,7 @@ export function initializeBot(): void {
             const userForSettings = await getUser(userId);
             if (userForSettings) {
                 try {
-                    await bot.editMessageText('Выберите тип поиска по умолчанию:', {
+                    await bot.editMessageText('Select default search type:', {
                         chat_id: chatId,
                         message_id: query.message.message_id,
                         reply_markup: getSearchSettingsKeyboard(userForSettings.search_config_key)

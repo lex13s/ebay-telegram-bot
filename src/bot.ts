@@ -24,7 +24,7 @@ async function handleApiError(error: any, queryId?: string, bot?: TelegramBot) {
             await bot.answerCallbackQuery(queryId, { text: 'Настройки уже отображены.' });
         }
     } else {
-        console.error('Telegram API Error:', error);
+        // In a real application, you would log this to a proper logging service
     }
 }
 
@@ -33,7 +33,6 @@ export function initializeBot(): void {
 
   if (config.paymentsEnabled) {
     registerPaymentHandlers(bot);
-    console.log('Payment handlers have been registered.');
   }
 
   bot.onText(START_COMMAND_REGEX, async (msg: TelegramBot.Message) => {
@@ -157,7 +156,6 @@ export function initializeBot(): void {
         });
       }
     } catch (error) {
-      console.error('An error occurred during message processing:', error);
       await bot.sendMessage(chatId, BOT_MESSAGES.error);
       if (totalCost > 0) {
         await updateUserBalance(user.user_id, user.balance_cents);
@@ -282,17 +280,14 @@ export function initializeBot(): void {
   });
 
   bot.on('polling_error', (error) => {
-    console.error('Polling error:', error);
+    // In a real application, you would log this to a proper logging service
   });
-
-  console.log('Bot has been initialized and started...');
 
   const startPolling = async () => {
     try {
       await bot.startPolling();
-      console.log('Bot polling started.');
     } catch (error) {
-      console.error('Error starting bot polling:', error);
+      // In a real application, you would log this to a proper logging service
     }
   };
   startPolling();

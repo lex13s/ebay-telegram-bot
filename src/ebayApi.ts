@@ -49,7 +49,6 @@ async function getEbayAppToken(): Promise<string> {
 
       return appTokenCache.token!;
     } catch (error) {
-      console.error('Error fetching eBay application token:', error);
       throw new Error('Failed to get eBay application token.');
     } finally {
       tokenRequestPromise = null;
@@ -103,18 +102,15 @@ async function searchActiveItems(keyword: string, config: BrowseApiConfig): Prom
         const ebayApi = getEbayApiInstance();
         await getEbayAppToken(); // Ensures token is fetched and credentials are set
 
-        console.time(`eBay Browse API Search for ${keyword}`);
         const response = await ebayApi.buy.browse.search({
             q: keyword,
             limit: EBAY_SEARCH_LIMIT,
             filter: config.filter,
         });
-        console.timeEnd(`eBay Browse API Search for ${keyword}`);
 
         const items = response.itemSummaries || [];
         return items.map((item: any) => mapToEbayItem(item, 'Browse'));
     } catch (error) {
-        console.error(`Error searching active items for keyword \'${keyword}\':`, error);
         return [];
     }
 }
@@ -136,19 +132,15 @@ async function searchCompletedItems(keyword: string, config: FindingApiConfig): 
             requestParams.sortOrder = config.sortOrder;
         }
 
-        console.time(`eBay Finding API Search for ${keyword}`);
         const response = await ebayApi.finding.findCompletedItems(requestParams);
-        console.timeEnd(`eBay Finding API Search for ${keyword}`);
 
         const items = response.searchResult?.item || [];
         return items.map((item: any) => mapToEbayItem(item, 'Finding'));
     } catch (error) {
-        console.error(`Error searching completed items for keyword \'${keyword}\':`, error);
         return [];
     }
 }
 
-// --- MAIN EXPORT ---
 export async function searchItemsByKeyword(
   keywords: string[],
   configKey: string
@@ -167,7 +159,6 @@ export async function searchItemsByKeyword(
     const results = await Promise.all(promises);
     return results;
   } catch (error) {
-    console.error('Error in Promise.all for searchItemsByKeyword:', error);
     return keywords.map(() => []);
   }
 }

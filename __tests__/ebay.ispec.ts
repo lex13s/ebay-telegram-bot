@@ -7,15 +7,8 @@ jest.mock('../src/ebayApi');
 const mockSearchItemsByKeyword = searchItemsByKeyword as jest.Mock;
 
 describe('ebay.ispec.ts', () => {
-  let consoleErrorSpy: jest.SpyInstance;
-
   beforeEach(() => {
     mockSearchItemsByKeyword.mockClear();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
   });
 
   it('should return item details for a single part number on successful API response', async () => {
@@ -63,7 +56,6 @@ describe('ebay.ispec.ts', () => {
 
     expect(mockSearchItemsByKeyword).toHaveBeenCalledTimes(1);
     expect(mockSearchItemsByKeyword).toHaveBeenCalledWith(['any-part'], 'SOLD');
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error searching on eBay:', apiError);
   });
 
   it('should handle multiple part numbers and return mixed results', async () => {

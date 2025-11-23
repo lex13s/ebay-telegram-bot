@@ -4,7 +4,7 @@ describe('excel.ts', () => {
   describe('createExcelReport', () => {
     it('should create a buffer for valid data', async () => {
       const data: ExcelRow[] = [
-        { partNumber: 'PN1', title: 'Title 1', price: '100.00 USD' }, // Изменено на строку
+        { partNumber: 'PN1', title: 'Title 1', price: '100.00 USD' },
         { partNumber: 'PN2', title: 'Title 2', price: 'N/A' },
       ];
       const buffer = await createExcelReport(data);

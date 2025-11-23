@@ -7,15 +7,8 @@ jest.mock('../src/ebayApi');
 const mockSearchItemsByKeyword = searchItemsByKeyword as jest.Mock;
 
 describe('ebay.ts', () => {
-  let consoleErrorSpy: jest.SpyInstance;
-
   beforeEach(() => {
     mockSearchItemsByKeyword.mockClear();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
   });
 
   it('should return item details for a single part number on successful API response', async () => {
@@ -69,18 +62,13 @@ describe('ebay.ts', () => {
         result: null,
       },
     ]);
-    // console.error should still be called from findItem's catch block if searchItemsByKeyword throws
-    // but in this mock, searchItemsByKeyword resolves to [[]], so findItem's catch is not hit.
-    // If we want to test findItem's catch, mockSearchItemsByKeyword should reject.
-    // Let's test findItem's own catch block explicitly.
   });
 
-  it('should catch and re-throw errors from searchItemsByKeyword', async () => {
+  it('should throw an error on API failure', async () => {
     const apiError = new Error('eBay API Error from searchItemsByKeyword');
     mockSearchItemsByKeyword.mockRejectedValueOnce(apiError);
 
     await expect(findItem(['part-with-api-error'], 'SOLD')).rejects.toThrow(apiError);
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error searching on eBay:', apiError);
   });
 
   it('should handle multiple part numbers and return mixed results', async () => {

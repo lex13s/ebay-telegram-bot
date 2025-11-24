@@ -36,4 +36,3 @@ export function createAppConfig(env: EnvConfig): AppConfig {
     },
   };
 }
-

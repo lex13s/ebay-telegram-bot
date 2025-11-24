@@ -21,10 +21,9 @@ export class SqliteUserRepository implements IUserRepository {
 
   public async findById(userId: UserId): Promise<User | null> {
     try {
-      const row = await this.db.get<UserRow>(
-        'SELECT * FROM users WHERE user_id = ?',
-        [userId.getValue()]
-      );
+      const row = await this.db.get<UserRow>('SELECT * FROM users WHERE user_id = ?', [
+        userId.getValue(),
+      ]);
 
       if (!row) {
         return null;
@@ -59,7 +58,11 @@ export class SqliteUserRepository implements IUserRepository {
     }
   }
 
-  public async createNew(userId: UserId, username: string | null, trialBalance: Balance): Promise<User> {
+  public async createNew(
+    userId: UserId,
+    username: string | null,
+    trialBalance: Balance
+  ): Promise<User> {
     try {
       const user = User.createNew(userId, username, trialBalance);
       await this.save(user);
@@ -72,7 +75,11 @@ export class SqliteUserRepository implements IUserRepository {
     }
   }
 
-  public async getOrCreate(userId: UserId, username: string | null, trialBalance: Balance): Promise<User> {
+  public async getOrCreate(
+    userId: UserId,
+    username: string | null,
+    trialBalance: Balance
+  ): Promise<User> {
     const existingUser = await this.findById(userId);
 
     if (existingUser) {
@@ -84,10 +91,10 @@ export class SqliteUserRepository implements IUserRepository {
 
   public async updateBalance(userId: UserId, newBalance: Balance): Promise<void> {
     try {
-      await this.db.run(
-        'UPDATE users SET balance_cents = ? WHERE user_id = ?',
-        [newBalance.getCents(), userId.getValue()]
-      );
+      await this.db.run('UPDATE users SET balance_cents = ? WHERE user_id = ?', [
+        newBalance.getCents(),
+        userId.getValue(),
+      ]);
     } catch (error) {
       this.logger.error('Failed to update balance', error as Error, {
         userId: userId.getValue(),
@@ -98,10 +105,10 @@ export class SqliteUserRepository implements IUserRepository {
 
   public async updateSearchConfig(userId: UserId, configKey: SearchConfigKey): Promise<void> {
     try {
-      await this.db.run(
-        'UPDATE users SET search_config_key = ? WHERE user_id = ?',
-        [configKey.getValue(), userId.getValue()]
-      );
+      await this.db.run('UPDATE users SET search_config_key = ? WHERE user_id = ?', [
+        configKey.getValue(),
+        userId.getValue(),
+      ]);
     } catch (error) {
       this.logger.error('Failed to update search config', error as Error, {
         userId: userId.getValue(),

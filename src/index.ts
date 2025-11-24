@@ -10,22 +10,11 @@ import {
   createPaymentConfig,
 } from './infrastructure';
 import { createLogger, ILogger } from './infrastructure';
-import {
-  DatabaseConnection,
-  SqliteUserRepository,
-  SqliteCouponRepository,
-} from './infrastructure';
-import {
-  EbayBrowseApiClient,
-  EbayFindingApiClient,
-} from './infrastructure';
+import { DatabaseConnection, SqliteUserRepository, SqliteCouponRepository } from './infrastructure';
+import { EbayBrowseApiClient, EbayFindingApiClient } from './infrastructure';
 import { ExcelReportGenerator } from './infrastructure';
 import { TelegramBotAdapter } from './infrastructure';
-import {
-  UserService,
-  CouponService,
-  EbaySearchService,
-} from './application';
+import { UserService, CouponService, EbaySearchService } from './application';
 import {
   ProcessSearchUseCase,
   RedeemCouponUseCase,
@@ -100,16 +89,9 @@ class Application {
         costPerRequest,
         this.logger
       );
-      const redeemCouponUseCase = new RedeemCouponUseCase(
-        userService,
-        couponService,
-        this.logger
-      );
+      const redeemCouponUseCase = new RedeemCouponUseCase(userService, couponService, this.logger);
       const generateCouponUseCase = new GenerateCouponUseCase(couponService, this.logger);
-      const updateSearchSettingsUseCase = new UpdateSearchSettingsUseCase(
-        userService,
-        this.logger
-      );
+      const updateSearchSettingsUseCase = new UpdateSearchSettingsUseCase(userService, this.logger);
 
       // 10. Create and register handlers
       const startCommandHandler = new StartCommandHandler(

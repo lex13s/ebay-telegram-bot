@@ -20,7 +20,7 @@ export class CouponService {
 
     this.logger.info('Generating new coupon', {
       code: code.getValue(),
-      value: value.getCents()
+      value: value.getCents(),
     });
 
     const coupon = await this.couponRepository.create(code, value);
@@ -31,7 +31,7 @@ export class CouponService {
   public async redeemCoupon(code: CouponCode, userId: UserId): Promise<Balance> {
     this.logger.info('Redeeming coupon', {
       code: code.getValue(),
-      userId: userId.getValue()
+      userId: userId.getValue(),
     });
 
     const coupon = await this.couponRepository.findByCode(code);
@@ -50,10 +50,9 @@ export class CouponService {
     this.logger.info('Coupon redeemed successfully', {
       code: code.getValue(),
       userId: userId.getValue(),
-      value: coupon.getValue().getCents()
+      value: coupon.getValue().getCents(),
     });
 
     return coupon.getValue();
   }
 }
-

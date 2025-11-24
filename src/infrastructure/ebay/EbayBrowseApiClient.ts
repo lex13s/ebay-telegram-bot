@@ -11,7 +11,10 @@ export class EbayBrowseApiClient {
     private readonly logger: ILogger
   ) {}
 
-  public async searchActiveItems(keyword: string, searchConfig: BrowseApiConfig): Promise<EbayItemData[]> {
+  public async searchActiveItems(
+    keyword: string,
+    searchConfig: BrowseApiConfig
+  ): Promise<EbayItemData[]> {
     try {
       await this.ensureValidToken();
 
@@ -21,15 +24,12 @@ export class EbayBrowseApiClient {
         filter: searchConfig.filter,
       });
 
-      const response = await fetch(
-        `${this.config.browseApiUrl}/item_summary/search?${params}`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await fetch(`${this.config.browseApiUrl}/item_summary/search?${params}`, {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`eBay Browse API error: ${response.statusText}`);
@@ -90,4 +90,3 @@ export class EbayBrowseApiClient {
     }
   }
 }
-

@@ -109,4 +109,3 @@ export class MessageTemplates {
     return `✅ Payment successful!\n\nYour balance has been topped up by $${amount}.\nCurrent balance: $${balance}.`;
   }
 }
-

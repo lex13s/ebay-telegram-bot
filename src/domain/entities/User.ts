@@ -59,4 +59,3 @@ export class User {
     this.username = username;
   }
 }
-

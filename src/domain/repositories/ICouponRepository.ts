@@ -9,4 +9,3 @@ export interface ICouponRepository {
   activate(code: CouponCode, userId: UserId): Promise<void>;
   save(coupon: Coupon): Promise<void>;
 }
-

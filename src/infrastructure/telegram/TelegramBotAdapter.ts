@@ -40,4 +40,3 @@ export class TelegramBotAdapter {
     return userId === this.config.adminId;
   }
 }
-

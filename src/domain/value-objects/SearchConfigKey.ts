@@ -31,4 +31,3 @@ export class SearchConfigKey {
     return this.value;
   }
 }
-

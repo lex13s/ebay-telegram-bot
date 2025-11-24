@@ -42,4 +42,3 @@ export class SearchResult {
     return `${this.data.priceValue} ${this.data.priceCurrency}`;
   }
 }
-

@@ -24,4 +24,3 @@ export class UserId {
     return this.value.toString();
   }
 }
-

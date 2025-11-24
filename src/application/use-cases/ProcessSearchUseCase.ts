@@ -65,7 +65,7 @@ export class ProcessSearchUseCase {
         user.getSearchConfigKey()
       );
 
-      const foundResults = results.filter(r => r.isFound());
+      const foundResults = results.filter((r) => r.isFound());
 
       if (foundResults.length === 0 && !request.isAdmin) {
         user.addBalance(totalCost);
@@ -97,7 +97,6 @@ export class ProcessSearchUseCase {
         newBalance: user.getBalance(),
         refunded: false,
       };
-
     } catch (error) {
       if (!request.isAdmin) {
         user.addBalance(totalCost);
@@ -112,4 +111,3 @@ export class ProcessSearchUseCase {
     }
   }
 }
-

@@ -14,4 +14,3 @@ export function createPaymentConfig(env: EnvConfig): PaymentConfig {
     stripeToken: env.STRIPE_PROVIDER_TOKEN,
   };
 }
-

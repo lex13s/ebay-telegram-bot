@@ -20,4 +20,3 @@ export interface FindingApiConfig {
 }
 
 export type EbaySearchConfig = BrowseApiConfig | FindingApiConfig;
-

@@ -49,4 +49,3 @@ export class EbaySearchConfigFactory {
     return 'itemFilter' in config;
   }
 }
-

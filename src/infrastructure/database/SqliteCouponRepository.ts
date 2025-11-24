@@ -35,10 +35,9 @@ export class SqliteCouponRepository implements ICouponRepository {
 
   public async findByCode(code: CouponCode): Promise<Coupon | null> {
     try {
-      const row = await this.db.get<CouponRow>(
-        'SELECT * FROM coupons WHERE code = ?',
-        [code.getValue()]
-      );
+      const row = await this.db.get<CouponRow>('SELECT * FROM coupons WHERE code = ?', [
+        code.getValue(),
+      ]);
 
       if (!row) return null;
 
@@ -51,10 +50,10 @@ export class SqliteCouponRepository implements ICouponRepository {
 
   public async create(code: CouponCode, value: Balance): Promise<Coupon> {
     try {
-      await this.db.run(
-        'INSERT INTO coupons (code, value_cents, is_activated) VALUES (?, ?, 0)',
-        [code.getValue(), value.getCents()]
-      );
+      await this.db.run('INSERT INTO coupons (code, value_cents, is_activated) VALUES (?, ?, 0)', [
+        code.getValue(),
+        value.getCents(),
+      ]);
 
       this.logger.info('Coupon created', { code: code.getValue(), value: value.getCents() });
 
@@ -95,9 +94,10 @@ export class SqliteCouponRepository implements ICouponRepository {
 
       this.logger.debug('Coupon saved', { code: coupon.getCode().getValue() });
     } catch (error) {
-      this.logger.error('Failed to save coupon', error as Error, { code: coupon.getCode().getValue() });
+      this.logger.error('Failed to save coupon', error as Error, {
+        code: coupon.getCode().getValue(),
+      });
       throw error;
     }
   }
 }
-

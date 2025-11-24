@@ -23,7 +23,7 @@ export class UserService {
 
     this.logger.debug('User obtained', {
       userId: userId.getValue(),
-      balance: user.getBalance().getCents()
+      balance: user.getBalance().getCents(),
     });
 
     return user;
@@ -42,7 +42,7 @@ export class UserService {
   public async updateBalance(userId: UserId, newBalance: Balance): Promise<void> {
     this.logger.debug('Updating user balance', {
       userId: userId.getValue(),
-      newBalance: newBalance.getCents()
+      newBalance: newBalance.getCents(),
     });
 
     await this.userRepository.updateBalance(userId, newBalance);
@@ -51,7 +51,7 @@ export class UserService {
   public async updateSearchConfig(userId: UserId, configKey: SearchConfigKey): Promise<void> {
     this.logger.debug('Updating user search config', {
       userId: userId.getValue(),
-      configKey: configKey.toString()
+      configKey: configKey.toString(),
     });
 
     await this.userRepository.updateSearchConfig(userId, configKey);
@@ -61,4 +61,3 @@ export class UserService {
     await this.userRepository.save(user);
   }
 }
-

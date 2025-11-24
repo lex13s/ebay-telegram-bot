@@ -81,4 +81,3 @@ export function createLogger(env: EnvConfig): ILogger {
     },
   };
 }
-

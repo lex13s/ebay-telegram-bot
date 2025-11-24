@@ -1,6 +1,11 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { UserId, PartNumber, CouponCode, InsufficientFundsError } from '../../domain';
-import { ProcessSearchUseCase, RedeemCouponUseCase, GenerateCouponUseCase, UserService } from '../../application';
+import {
+  ProcessSearchUseCase,
+  RedeemCouponUseCase,
+  GenerateCouponUseCase,
+  UserService,
+} from '../../application';
 import { TelegramBotAdapter, ExcelReportGenerator, ILogger } from '../../infrastructure';
 import { KeyboardBuilder, MessageTemplates } from '..';
 import { RegexPatterns, FileConstants } from '../../shared/constants';
@@ -120,11 +125,12 @@ export class MessageHandler {
         await bot.sendMessage(msg.chat.id, completionMessage);
       } else {
         // No results found
-        const noResultsMessage = isAdmin || response.refunded
-          ? response.refunded
-            ? MessageTemplates.noItemsFoundAndRefund(formatCents(response.newBalance.getCents()))
-            : MessageTemplates.noItemsFound()
-          : MessageTemplates.noItemsFound();
+        const noResultsMessage =
+          isAdmin || response.refunded
+            ? response.refunded
+              ? MessageTemplates.noItemsFoundAndRefund(formatCents(response.newBalance.getCents()))
+              : MessageTemplates.noItemsFound()
+            : MessageTemplates.noItemsFound();
 
         await bot.sendMessage(msg.chat.id, noResultsMessage);
       }
@@ -155,7 +161,7 @@ export class MessageHandler {
     const isAdmin = this.botAdapter.isAdmin(msg.from.id);
 
     // Remove reply keyboard
-    const tempMsg = await bot.sendMessage(msg.chat.id, 'Обработка...', {
+    const tempMsg = await bot.sendMessage(msg.chat.id, 'Processing...', {
       reply_markup: KeyboardBuilder.createRemoveKeyboard(),
     });
     await bot.deleteMessage(msg.chat.id, tempMsg.message_id);
@@ -176,7 +182,7 @@ export class MessageHandler {
           formatCents(response.newBalance.getCents())
         )
       );
-    } catch (error) {
+    } catch {
       await bot.sendMessage(msg.chat.id, MessageTemplates.redeemCouponNotFound());
     }
 
@@ -202,7 +208,7 @@ export class MessageHandler {
     }
 
     // Remove reply keyboard
-    const tempMsg = await bot.sendMessage(msg.chat.id, 'Создание купона...', {
+    const tempMsg = await bot.sendMessage(msg.chat.id, 'Creating coupon...', {
       reply_markup: KeyboardBuilder.createRemoveKeyboard(),
     });
     await bot.deleteMessage(msg.chat.id, tempMsg.message_id);
@@ -223,7 +229,7 @@ export class MessageHandler {
           ),
           { parse_mode: 'Markdown' }
         );
-      } catch (error) {
+      } catch {
         await bot.sendMessage(msg.chat.id, MessageTemplates.generateCouponError());
       }
     }
@@ -237,4 +243,3 @@ export class MessageHandler {
     );
   }
 }
-

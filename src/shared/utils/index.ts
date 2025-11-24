@@ -22,4 +22,3 @@ export const formatCents = (cents: number): string => {
 export const dollarsToCents = (dollars: number): number => {
   return Math.round(dollars * 100);
 };
-

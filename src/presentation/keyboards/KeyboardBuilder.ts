@@ -17,7 +17,9 @@ export class KeyboardBuilder {
     ];
 
     if (isAdmin) {
-      buttons.push([{ text: '🎟️ Generate coupon (Admin)', callback_data: 'generate_coupon_prompt' }]);
+      buttons.push([
+        { text: '🎟️ Generate coupon (Admin)', callback_data: 'generate_coupon_prompt' },
+      ]);
     }
 
     return {
@@ -28,7 +30,9 @@ export class KeyboardBuilder {
   /**
    * Create search settings keyboard
    */
-  public static createSearchSettings(currentConfig: SearchConfigKey): TelegramBot.InlineKeyboardMarkup {
+  public static createSearchSettings(
+    currentConfig: SearchConfigKey
+  ): TelegramBot.InlineKeyboardMarkup {
     const configValue = currentConfig.getValue();
 
     return {
@@ -87,4 +91,3 @@ export class KeyboardBuilder {
     };
   }
 }
-

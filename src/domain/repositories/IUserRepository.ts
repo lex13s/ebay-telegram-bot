@@ -11,4 +11,3 @@ export interface IUserRepository {
   updateBalance(userId: UserId, newBalance: Balance): Promise<void>;
   updateSearchConfig(userId: UserId, configKey: SearchConfigKey): Promise<void>;
 }
-

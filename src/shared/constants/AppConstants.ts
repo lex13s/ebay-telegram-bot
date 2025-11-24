@@ -21,4 +21,3 @@ export const FileConstants = {
   EXCEL_FILE_PREFIX: 'eBay_Report_',
   EXCEL_CONTENT_TYPE: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 } as const;
-

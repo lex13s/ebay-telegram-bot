@@ -22,7 +22,7 @@ export function createEbayConfig(env: EnvConfig): EbayConfig {
     clientSecret: env.EBAY_CLIENT_SECRET,
     sandbox: !isProduction,
     marketplaceId: 'EBAY_US',
-    searchLimit: "1",
+    searchLimit: '1',
     browseApiUrl: isProduction
       ? 'https://api.ebay.com/buy/browse/v1'
       : 'https://api.sandbox.ebay.com/buy/browse/v1',
@@ -34,4 +34,3 @@ export function createEbayConfig(env: EnvConfig): EbayConfig {
       : 'https://api.sandbox.ebay.com/identity/v1/oauth2/token',
   };
 }
-

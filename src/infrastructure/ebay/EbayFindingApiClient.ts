@@ -21,7 +21,10 @@ export class EbayFindingApiClient {
     });
   }
 
-  public async searchCompletedItems(keyword: string, config: FindingApiConfig): Promise<EbayItemData[]> {
+  public async searchCompletedItems(
+    keyword: string,
+    config: FindingApiConfig
+  ): Promise<EbayItemData[]> {
     try {
       this.logger.debug('Searching completed items on eBay', { keyword });
 
@@ -59,4 +62,3 @@ export class EbayFindingApiClient {
     }
   }
 }
-

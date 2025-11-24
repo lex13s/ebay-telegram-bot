@@ -58,4 +58,3 @@ export class Coupon {
     return !this.isActivated;
   }
 }
-

@@ -8,7 +8,7 @@ export class PartNumber {
   public static create(value: string): PartNumber {
     const trimmed = value.trim();
     if (trimmed.length === 0) {
-      throw new Error('PartNumber cannot be empty');
+      throw new Error('Part number cannot be empty');
     }
     return new PartNumber(trimmed);
   }
@@ -25,4 +25,3 @@ export class PartNumber {
     return this.value;
   }
 }
-

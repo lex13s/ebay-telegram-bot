@@ -49,4 +49,3 @@ export class Balance {
     return `$${this.getDollars().toFixed(2)}`;
   }
 }
-

@@ -36,11 +36,9 @@ export class StartCommandHandler {
       const bot = this.botAdapter.getBot();
 
       // Send welcome message
-      await bot.sendMessage(
-        msg.chat.id,
-        MessageTemplates.start(msg.from.first_name),
-        { reply_markup: KeyboardBuilder.createRemoveKeyboard() }
-      );
+      await bot.sendMessage(msg.chat.id, MessageTemplates.start(msg.from.first_name), {
+        reply_markup: KeyboardBuilder.createRemoveKeyboard(),
+      });
 
       // Send main menu
       await bot.sendMessage(
@@ -57,4 +55,3 @@ export class StartCommandHandler {
     }
   }
 }
-

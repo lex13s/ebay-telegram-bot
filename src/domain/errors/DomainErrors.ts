@@ -8,7 +8,9 @@ export abstract class DomainError extends Error {
 
 export class InsufficientFundsError extends DomainError {
   constructor(required: number, available: number) {
-    super(`Insufficient funds: required $${(required / 100).toFixed(2)}, available $${(available / 100).toFixed(2)}`);
+    super(
+      `Insufficient funds: required $${(required / 100).toFixed(2)}, available $${(available / 100).toFixed(2)}`
+    );
   }
 }
 
@@ -35,4 +37,3 @@ export class InvalidPartNumberError extends DomainError {
     super(`Invalid part number: ${partNumber}`);
   }
 }
-

@@ -197,3 +197,32 @@
 - **Result:** Professional Clean Architecture implementation
 
 ---
+
+## [2025-11-24] - Test Suite Migration & Refinement
+
+### Added
+- **Comprehensive Test Suite:** Created over 20 new test files, adding hundreds of unit tests for the new Clean Architecture structure.
+- **Layered Test Coverage:**
+    - **Domain:** Tests for all Value Objects (`UserId`, `Balance`, etc.) and Entities (`User`, `Coupon`).
+    - **Application:** Tests for all Use Cases (`ProcessSearchUseCase`, etc.) and Services (`UserService`, etc.).
+    - **Infrastructure:** Tests for configuration (`EnvConfig`), database connection, and API clients.
+    - **Presentation:** Tests for UI components like `KeyboardBuilder` and `MessageTemplates`.
+- **Test Infrastructure:**
+    - `MockFactory.ts`: Centralized factory for creating mock entities and value objects.
+    - `MockRepositories.ts`: Mock implementations of `IUserRepository` and `ICouponRepository` for isolated testing.
+
+### Changed
+- **Test Migration:** Migrated all relevant logic from old, monolithic test files to the new layered structure.
+- **Test Refinement:** Improved test quality by applying the AAA (Arrange, Act, Assert) pattern and ensuring test isolation.
+- **`tsconfig.json`:** Changed `rootDir` from `./src` to `.` to correctly include the `__tests__` directory in the TypeScript project, fixing `TS6059` errors.
+
+### Removed
+- **Obsolete Tests:** Deleted old test files (`bot.test.ts`, `ebay.test.ts`, etc.) that were incompatible with the v2.0 architecture.
+
+### Fixed
+- **TypeScript Build:** Resolved all compilation errors related to test files being outside the configured `rootDir`.
+
+### Docs
+- **`architecture.md`:** Translated the entire document to English for consistency.
+- **`MockFactory.ts`:** Translated all remaining English comments to Russian.
+- **`changelog.md`:** Added this entry to document the extensive work on the test suite.

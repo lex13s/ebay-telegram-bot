@@ -35,4 +35,3 @@ export function loadEnv(): EnvConfig {
 }
 
 export type EnvConfig = z.infer<typeof envSchema>;
-

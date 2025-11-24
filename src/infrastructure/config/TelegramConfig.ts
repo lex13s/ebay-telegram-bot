@@ -14,4 +14,3 @@ export function createTelegramConfig(env: EnvConfig): TelegramConfig {
     adminId: env.ADMIN_USER_ID,
   };
 }
-

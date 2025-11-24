@@ -1,8 +1,8 @@
 # Clean Architecture - eBay Bot
 
-## 🏗️ Общая структура архитектуры
+## 🏗️ Overall Architecture Structure
 
-Проект полностью рефакторен с применением принципов Clean Architecture (Чистая архитектура). Код разделён на 4 основных слоя, каждый из которых имеет чётко определённую ответственность.
+The project has been completely refactored applying Clean Architecture principles. The code is separated into 4 main layers, each with a clearly defined responsibility.
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -44,133 +44,133 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```
 src/
-├── domain/                          # Доменный слой (бизнес-логика)
-│   ├── entities/                    # Сущности с бизнес-правилами
-│   │   ├── User.ts                  # Пользователь (баланс, настройки)
-│   │   ├── Coupon.ts                # Купон (активация, проверка)
-│   │   └── SearchResult.ts          # Результат поиска
-│   ├── value-objects/               # Неизменяемые объекты-значения
-│   │   ├── UserId.ts                # ID пользователя
-│   │   ├── Balance.ts               # Баланс (в центах)
-│   │   ├── PartNumber.ts            # Номер детали
-│   │   ├── CouponCode.ts            # Код купона
-│   │   └── SearchConfigKey.ts       # Тип поиска (ACTIVE/SOLD/ENDED)
-│   ├── repositories/                # Интерфейсы репозиториев
-│   │   ├── IUserRepository.ts       # Контракт для работы с User
-│   │   └── ICouponRepository.ts     # Контракт для работы с Coupon
-│   └── errors/                      # Доменные ошибки
+├── domain/                          # Domain Layer (Business Logic)
+│   ├── entities/                    # Entities with business rules
+│   │   ├── User.ts                  # User (balance, settings)
+│   │   ├── Coupon.ts                # Coupon (activation, validation)
+│   │   └── SearchResult.ts          # Search Result
+│   ├── value-objects/               # Immutable Value Objects
+│   │   ├── UserId.ts                # User ID
+│   │   ├── Balance.ts               # Balance (in cents)
+│   │   ├── PartNumber.ts            # Part Number
+│   │   ├── CouponCode.ts            # Coupon Code
+│   │   └── SearchConfigKey.ts       # Search Type (ACTIVE/SOLD/ENDED)
+│   ├── repositories/                # Repository Interfaces
+│   │   ├── IUserRepository.ts       # Contract for working with User
+│   │   └── ICouponRepository.ts     # Contract for working with Coupon
+│   └── errors/                      # Domain Errors
 │       └── DomainErrors.ts          # InsufficientFundsError, InvalidCouponError...
 │
-├── application/                     # Слой приложения (use-cases)
-│   ├── use-cases/                   # Бизнес-сценарии
-│   │   ├── ProcessSearchUseCase.ts  # Обработка поиска деталей
-│   │   ├── RedeemCouponUseCase.ts   # Активация купона
-│   │   ├── GenerateCouponUseCase.ts # Генерация купона (admin)
-│   │   └── UpdateSearchSettingsUseCase.ts # Изменение настроек поиска
-│   └── services/                    # Сервисы (оркестрация)
-│       ├── UserService.ts           # Работа с пользователями
-│       ├── CouponService.ts         # Работа с купонами
-│       └── EbaySearchService.ts     # Поиск на eBay
+├── application/                     # Application Layer (Use Cases)
+│   ├── use-cases/                   # Business Scenarios
+│   │   ├── ProcessSearchUseCase.ts  # Processing part search
+│   │   ├── RedeemCouponUseCase.ts   # Coupon activation
+│   │   ├── GenerateCouponUseCase.ts # Coupon generation (admin)
+│   │   └── UpdateSearchSettingsUseCase.ts # Changing search settings
+│   └── services/                    # Services (Orchestration)
+│       ├── UserService.ts           # Working with users
+│       ├── CouponService.ts         # Working with coupons
+│       └── EbaySearchService.ts     # eBay search
 │
-├── infrastructure/                  # Инфраструктурный слой
-│   ├── config/                      # Конфигурация
-│   │   ├── EnvConfig.ts             # Валидация .env через Zod
-│   │   ├── AppConfig.ts             # Конфиг приложения
-│   │   ├── TelegramConfig.ts        # Конфиг Telegram
-│   │   ├── EbayConfig.ts            # Конфиг eBay API
-│   │   └── PaymentConfig.ts         # Конфиг платежей
-│   ├── logging/                     # Логирование
-│   │   └── Logger.ts                # Winston logger с транспортами
-│   ├── database/                    # База данных
-│   │   ├── DatabaseConnection.ts    # SQLite подключение
-│   │   ├── SqliteUserRepository.ts  # Реализация IUserRepository
-│   │   └── SqliteCouponRepository.ts # Реализация ICouponRepository
-│   ├── ebay/                        # eBay API клиенты
-│   │   ├── EbayBrowseApiClient.ts   # Browse API (активные)
-│   │   ├── EbayFindingApiClient.ts  # Finding API (проданные/завершённые)
-│   │   └── EbaySearchConfigFactory.ts # Фабрика конфигов
+├── infrastructure/                  # Infrastructure Layer
+│   ├── config/                      # Configuration
+│   │   ├── EnvConfig.ts             # .env validation via Zod
+│   │   ├── AppConfig.ts             # Application config
+│   │   ├── TelegramConfig.ts        # Telegram config
+│   │   ├── EbayConfig.ts            # eBay API config
+│   │   └── PaymentConfig.ts         # Payment config
+│   ├── logging/                     # Logging
+│   │   └── Logger.ts                # Winston logger with transports
+│   ├── database/                    # Database
+│   │   ├── DatabaseConnection.ts    # SQLite connection
+│   │   ├── SqliteUserRepository.ts  # IUserRepository implementation
+│   │   └── SqliteCouponRepository.ts # ICouponRepository implementation
+│   ├── ebay/                        # eBay API Clients
+│   │   ├── EbayBrowseApiClient.ts   # Browse API (active)
+│   │   ├── EbayFindingApiClient.ts  # Finding API (sold/ended)
+│   │   └── EbaySearchConfigFactory.ts # Config factory
 │   ├── telegram/                    # Telegram Bot API
-│   │   └── TelegramBotAdapter.ts    # Адаптер для Telegram Bot
-│   └── excel/                       # Генерация отчётов
-│       └── ExcelReportGenerator.ts  # Excel файлы с результатами
+│   │   └── TelegramBotAdapter.ts    # Adapter for Telegram Bot
+│   └── excel/                       # Report Generation
+│       └── ExcelReportGenerator.ts  # Excel files with results
 │
-├── presentation/                    # Слой представления
-│   ├── handlers/                    # Обработчики событий
-│   │   ├── StartCommandHandler.ts   # /start команда
-│   │   ├── MessageHandler.ts        # Текстовые сообщения
-│   │   ├── CallbackQueryHandler.ts  # Inline кнопки
-│   │   └── PaymentHandler.ts        # Платежи
-│   ├── keyboards/                   # Клавиатуры
-│   │   └── KeyboardBuilder.ts       # Фабрика клавиатур
-│   └── messages/                    # Сообщения
-│       └── MessageTemplates.ts      # Шаблоны текстов
+├── presentation/                    # Presentation Layer
+│   ├── handlers/                    # Event Handlers
+│   │   ├── StartCommandHandler.ts   # /start command
+│   │   ├── MessageHandler.ts        # Text messages
+│   │   ├── CallbackQueryHandler.ts  # Inline buttons
+│   │   └── PaymentHandler.ts        # Payments
+│   ├── keyboards/                   # Keyboards
+│   │   └── KeyboardBuilder.ts       # Keyboard factory
+│   └── messages/                    # Messages
+│       └── MessageTemplates.ts      # Text templates
 │
-├── shared/                          # Общие утилиты
-│   ├── constants/                   # Константы
-│   ├── types/                       # Общие типы
-│   └── utils/                       # Вспомогательные функции
+├── shared/                          # Shared utilities
+│   ├── constants/                   # Constants
+│   ├── types/                       # Common types
+│   └── utils/                       # Helper functions
 │
-└── index.ts                         # Точка входа с DI composition
+└── index.ts                         # Entry point with DI composition
 ```
 
-## 🔄 Поток данных
+## 🔄 Data Flow
 
-### Пример: Поиск деталей
+### Example: Part Search
 
 ```
-1. User отправляет сообщение с номерами деталей
+1. User sends a message with part numbers
    ↓
-2. MessageHandler получает событие
+2. MessageHandler receives the event
    ↓
-3. MessageHandler вызывает ProcessSearchUseCase
+3. MessageHandler calls ProcessSearchUseCase
    ↓
 4. ProcessSearchUseCase:
-   - Получает/создаёт User через UserService
-   - Проверяет баланс
-   - Списывает средства
-   - Вызывает EbaySearchService для поиска
+   - Gets/creates a User via UserService
+   - Checks the balance
+   - Deducts funds
+   - Calls EbaySearchService to search
    ↓
 5. EbaySearchService:
-   - Определяет тип поиска (Browse/Finding API)
-   - Выполняет поиск через соответствующий клиент
-   - Возвращает SearchResult[]
+   - Determines the search type (Browse/Finding API)
+   - Performs the search using the appropriate client
+   - Returns SearchResult[]
    ↓
 6. ProcessSearchUseCase:
-   - Если результатов нет → возврат средств
-   - Если есть → продолжает
+   - If no results → refunds the money
+   - If there are results → continues
    ↓
 7. MessageHandler:
-   - Генерирует Excel через ExcelReportGenerator
-   - Отправляет файл пользователю
-   - Показывает главное меню
+   - Generates an Excel file via ExcelReportGenerator
+   - Sends the file to the user
+   - Shows the main menu
 ```
 
-## 🎯 Ключевые принципы
+## 🎯 Key Principles
 
 ### 1. Dependency Inversion Principle (DIP)
-- Domain слой не зависит от Infrastructure
-- Все зависимости направлены внутрь (к Domain)
-- Интерфейсы определены в Domain, реализация в Infrastructure
+- The Domain layer does not depend on Infrastructure
+- All dependencies are directed inwards (towards the Domain)
+- Interfaces are defined in the Domain, implementation in Infrastructure
 
 ### 2. Single Responsibility Principle (SRP)
-- Каждый класс имеет одну ответственность
-- Use Cases инкапсулируют один бизнес-сценарий
-- Handlers только принимают события и делегируют Use Cases
+- Each class has a single responsibility
+- Use Cases encapsulate a single business scenario
+- Handlers only receive events and delegate to Use Cases
 
 ### 3. Open/Closed Principle (OCP)
-- Легко добавить новый Use Case без изменения существующих
-- Новые handlers добавляются без модификации других
-- Расширяемость через интерфейсы
+- Easy to add a new Use Case without changing existing ones
+- New handlers are added without modifying others
+- Extensibility through interfaces
 
-## 🧪 Тестируемость
+## 🧪 Testability
 
-### Unit тесты для Use Cases
+### Unit tests for Use Cases
 ```typescript
-// Пример: ProcessSearchUseCase.test.ts
+// Example: ProcessSearchUseCase.test.ts
 const mockUserService = {
   getOrCreateUser: jest.fn(),
   saveUser: jest.fn(),
@@ -187,17 +187,17 @@ const useCase = new ProcessSearchUseCase(
   mockLogger
 );
 
-// Тесты...
+// Tests...
 ```
 
-### Преимущества:
-- ✅ Легко мокировать зависимости
-- ✅ Изолированное тестирование логики
-- ✅ Быстрые тесты (без БД/API)
+### Advantages:
+- ✅ Easy to mock dependencies
+- ✅ Isolated logic testing
+- ✅ Fast tests (without DB/API)
 
-## 📊 Логирование
+## 📊 Logging
 
-Winston logger интегрирован на всех уровнях:
+Winston logger is integrated at all levels:
 
 ```typescript
 // Development
@@ -209,9 +209,9 @@ Winston logger интегрирован на всех уровнях:
 {"timestamp":"2025-11-23T10:30:45Z","level":"info","message":"Search completed","meta":{"foundItems":2}}
 ```
 
-## ⚙️ Конфигурация (Zod)
+## ⚙️ Configuration (Zod)
 
-Все environment переменные валидируются при старте:
+All environment variables are validated at startup:
 
 ```typescript
 const envSchema = z.object({
@@ -224,46 +224,46 @@ const envSchema = z.object({
 });
 ```
 
-При ошибке валидации - подробное сообщение с указанием проблемы.
+In case of a validation error, a detailed message indicating the problem is shown.
 
-## 🚀 Запуск приложения
+## 🚀 Application Startup
 
-### Manual Dependency Injection в index.ts:
+### Manual Dependency Injection in index.ts:
 
 ```typescript
 class Application {
   async start() {
-    // 1. Загрузка и валидация конфига
+    // 1. Load and validate config
     const env = loadEnv();
     const configs = createConfigs(env);
     
-    // 2. Создание logger
+    // 2. Create logger
     const logger = createLogger(env);
     
-    // 3. Инициализация БД
+    // 3. Initialize DB
     const db = new DatabaseConnection(...);
     await db.connect();
     
-    // 4. Создание repositories
+    // 4. Create repositories
     const userRepo = new SqliteUserRepository(db, logger);
     const couponRepo = new SqliteCouponRepository(db, logger);
     
-    // 5. Создание infrastructure клиентов
+    // 5. Create infrastructure clients
     const browseApi = new EbayBrowseApiClient(...);
     const findingApi = new EbayFindingApiClient(...);
     
-    // 6. Создание services
+    // 6. Create services
     const userService = new UserService(userRepo, ...);
     const ebaySearchService = new EbaySearchService(...);
     
-    // 7. Создание use-cases
+    // 7. Create use-cases
     const processSearchUseCase = new ProcessSearchUseCase(...);
     
-    // 8. Создание handlers
+    // 8. Create handlers
     const messageHandler = new MessageHandler(...);
     messageHandler.register();
     
-    // 9. Запуск бота
+    // 9. Start the bot
     await botAdapter.startPolling();
     
     // 10. Graceful shutdown
@@ -274,48 +274,47 @@ class Application {
 
 ## 🛡️ Graceful Shutdown
 
-Приложение корректно завершает работу при получении SIGTERM/SIGINT:
+The application shuts down correctly upon receiving SIGTERM/SIGINT:
 
-1. Останавливает Telegram polling
-2. Закрывает соединение с БД
-3. Логирует завершение
-4. Выходит с кодом 0
+1. Stops Telegram polling
+2. Closes the database connection
+3. Logs the shutdown
+4. Exits with code 0
 
-## 📝 Миграция со старой структуры
+## 📝 Migration from the Old Structure
 
-### Старая структура (монолит):
+### Old structure (monolith):
 ```
 src/
-├── bot.ts          # 300+ строк, всё в одном файле
-├── ebay.ts         # Смешаны API calls и логика
-├── database.ts     # Прямые SQL запросы
-└── utils.ts        # Всё подряд
+├── bot.ts          # 300+ lines, all in one file
+├── ebay.ts         # Mixed API calls and logic
+├── database.ts     # Direct SQL queries
+└── utils.ts        # Everything else
 ```
 
-### Новая структура (Clean Architecture):
+### New structure (Clean Architecture):
 ```
 src/
-├── domain/         # Бизнес-логика, независимая от фреймворков
-├── application/    # Use cases, сервисы
-├── infrastructure/ # Детали реализации
-└── presentation/   # UI слой
+├── domain/         # Business logic, framework-independent
+├── application/    # Use cases, services
+├── infrastructure/ # Implementation details
+└── presentation/   # UI layer
 ```
 
-## 🎓 Дальнейшие улучшения
+## 🎓 Future Improvements
 
-1. **Unit тесты для Use Cases**: Покрыть все сценарии тестами с моками
-2. **Integration тесты**: Тесты с реальной БД (in-memory SQLite)
-3. **E2E тесты**: Полный flow от Telegram до Excel
-4. **Monitoring**: Добавить метрики (Prometheus) и трейсинг
-5. **Error Recovery**: Retry механизмы для API calls
-6. **Caching**: Кэширование результатов поиска
-7. **Rate Limiting**: Защита от спама на уровне приложения
+1. **Unit Tests for Use Cases**: Cover all scenarios with mocked tests
+2. **Integration Tests**: Tests with real DB (in-memory SQLite)
+3. **E2E Tests**: Complete flow from Telegram to Excel
+4. **Monitoring**: Add metrics (Prometheus) and tracing
+5. **Error Recovery**: Retry mechanisms for API calls
+6. **Caching**: Cache search results
+7. **Rate Limiting**: Application-level spam protection
 
-## 📚 Полезные ресурсы
+## 📚 Useful Resources
 
 - [Clean Architecture (Robert C. Martin)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Domain-Driven Design](https://martinfowler.com/bliki/DomainDrivenDesign.html)
 - [SOLID Principles](https://en.wikipedia.org/wiki/SOLID)
 
 ---
-

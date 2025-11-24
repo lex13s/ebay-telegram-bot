@@ -144,7 +144,10 @@ export class CallbackQueryHandler {
     await bot.answerCallbackQuery(query.id);
   }
 
-  private async handleRedeemPrompt(query: TelegramBot.CallbackQuery, chatId: number): Promise<void> {
+  private async handleRedeemPrompt(
+    query: TelegramBot.CallbackQuery,
+    chatId: number
+  ): Promise<void> {
     const bot = this.botAdapter.getBot();
 
     await bot.sendMessage(chatId, MessageTemplates.enterCouponCode(), {
@@ -233,4 +236,3 @@ export class CallbackQueryHandler {
     }
   }
 }
-

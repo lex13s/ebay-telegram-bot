@@ -16,10 +16,13 @@ export class EbaySearchService {
     private readonly logger: ILogger
   ) {}
 
-  public async search(partNumbers: PartNumber[], configKey: SearchConfigKey): Promise<SearchResult[]> {
+  public async search(
+    partNumbers: PartNumber[],
+    configKey: SearchConfigKey
+  ): Promise<SearchResult[]> {
     this.logger.info('Starting eBay search', {
       partNumbersCount: partNumbers.length,
-      configKey: configKey.toString()
+      configKey: configKey.toString(),
     });
 
     const searchConfig = EbaySearchConfigFactory.create(configKey);
@@ -54,10 +57,9 @@ export class EbaySearchService {
 
     this.logger.info('eBay search completed', {
       totalResults: results.length,
-      foundItems: results.filter(r => r.isFound()).length
+      foundItems: results.filter((r) => r.isFound()).length,
     });
 
     return results;
   }
 }
-

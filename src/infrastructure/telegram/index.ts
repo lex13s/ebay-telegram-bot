@@ -1,2 +1,1 @@
 export { TelegramBotAdapter } from './TelegramBotAdapter';
-
